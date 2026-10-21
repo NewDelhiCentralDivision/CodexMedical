@@ -6,22 +6,22 @@ Medical Claims Studio is a decision-support workspace for Department of Posts pr
 
 ## Visual direction
 
-The visual metaphor is a calm, well-organised document desk rather than a generic analytics dashboard. Warm paper ground (`#F7F5F0`) reduces glare during document review, deep ink (`#17283D`) carries primary text, official teal (`#136F8A`) identifies verified information, and saffron (`#EA7A27`) is reserved for the next meaningful action. White panels and pale rules create clear scanning groups without making every item a card. The signature element is a Three.js "claim orbit" in the hero: a live, abstract review network that makes the data-processing purpose memorable without treating medical documents as decoration.
+The interface uses India Post red (`#C9252C`) and white as its identity, balanced with soft neutral paper surfaces and dark ink for comfortable document review. Red marks primary actions, active states and the assisted-review hero; white and pale rose surfaces keep claim details legible. Motion is small and purposeful: the hero illustrates assistance at the claim desk, while buttons, metrics and disclosures respond to pointer and keyboard interaction.
 
 Display type: Fraunces, used only for the product name. Interface/body: DM Sans. Amounts use DM Mono so digits align visually. Motion is one short entrance and small button lift; `prefers-reduced-motion` disables it.
 
 ## Layout and tokens
 
-- Maximum content width: 1380px, compact padding on narrow screens.
+- Maximum content width: 1440px, compact padding on narrow screens.
 - Grid: Streamlit responsive columns; controls collapse naturally on smaller viewports.
 - Radius: 9px for controls, 12–14px for data surfaces and feedback.
-- Primary action: saffron, never used for warnings or destructive actions.
+- Primary action: India Post red (`#C9252C`), with a darker red on hover.
 - Attention states: Streamlit warning/error semantics plus a readable calculation-sheet row tint.
 - Scrollbars: platform-owned Streamlit surfaces remain visible and operable.
 
 ## Runtime mapping
 
-`app.py` owns the runtime theme and component styling through its top-level CSS block. Its `render_claim_orbit` function owns the isolated Three.js hero canvas. This file owns design intent; CSS custom properties in that block implement its named tokens. No other styling system is in use.
+`app.py` owns the runtime theme and component styling through its top-level CSS block. Its `render_claim_orbit` function owns the isolated animated SVG hero scene. This file owns design intent; CSS custom properties in that block implement its named tokens. No other styling system is in use.
 
 ## Accessibility and motion
 
