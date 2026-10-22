@@ -4,10 +4,10 @@ Medical Claims Studio is a refreshed Streamlit workspace for reviewing CGHS medi
 
 ## What is new
 
-- A focused four-stage workflow: choose a reading method, add documents, review the rate check and issue drafts.
-- An India Post red (`#C9252C`) and white visual identity, with responsive controls, clear focus states, polished motion and reduced-motion support.
+- A focused four-stage workflow: intake documents, confirm claimant details, scrutinize rates and prepare sanction drafts.
+- A pastel casework interface with responsive controls, clear focus states, gentle motion and reduced-motion support.
 - Clearer visual hierarchy for decision points, while preserving editable rows, manual entry and review warnings.
-- A document-desk interface designed for long claim-review sessions, with aligned amount metrics and improved data surfaces.
+- A Three.js document-review scene with a CSS fallback, plus aligned amount metrics and improved data surfaces.
 
 > **Decision support only.** The processing officer must review every match, rate and final amount before sanction.
 

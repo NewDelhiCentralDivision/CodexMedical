@@ -43,54 +43,54 @@ TIER2_CITIES = [
 
 st.set_page_config(page_title="Medical Claims Studio", page_icon="✦", layout="wide", initial_sidebar_state="expanded")
 
-# India Post red and white, with soft neutral surfaces for long review sessions.
+# A calm, practical casework desk with pastel surfaces and clear status colors.
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
-:root { --post-red:#c9252c; --post-red-dark:#a71920; --post-red-soft:#fff0f0; --ink:#242326; --ink-soft:#68666a; --paper:#fbf8f8; --panel:#ffffff; --rule:#eadfe0; --shadow:0 14px 38px rgba(72,22,25,.07); }
-.stApp { background:radial-gradient(ellipse at 90% 0%,#fff0f0 0,transparent 32rem),var(--paper); color:var(--ink); font-family:'DM Sans',sans-serif; }
-[data-testid="stSidebar"] { background:linear-gradient(165deg,#b91f26 0%,#8e141b 100%); }
-[data-testid="stSidebar"] * { color:#f4f8fa; }
-[data-testid="stSidebar"] .stCaption, [data-testid="stSidebar"] p { color:rgba(255,255,255,.82)!important; }
-[data-testid="stSidebar"] h1 { font-family:'Fraunces',Georgia,serif!important; color:#fff!important; font-size:2.6rem!important; line-height:1.06!important; letter-spacing:-.05em!important; }
+:root { --ink:#29363b; --muted:#667579; --paper:#f2f5f2; --panel:#fbfcfa; --line:#dce5df; --sage:#dfeae3; --sage-deep:#55766b; --sage-dark:#405d54; --blue:#e2edf0; --sand:#f2e9de; --rose:#f4e4e1; --lavender:#ebe8f1; --shadow:0 16px 40px rgba(42,65,55,.07); }
+.stApp { background:radial-gradient(ellipse at 80% -8%,#e6eeea 0,transparent 34rem),var(--paper); color:var(--ink); font-family:'DM Sans',sans-serif; }
+[data-testid="stSidebar"] { background:#e8eee9; border-right:1px solid var(--line); }
+[data-testid="stSidebar"] * { color:var(--ink); }
+[data-testid="stSidebar"] .stCaption,[data-testid="stSidebar"] p { color:var(--muted)!important; }
+[data-testid="stSidebar"] h1 { font-family:'DM Sans',sans-serif!important; color:var(--ink)!important; font-size:1.55rem!important; line-height:1.15!important; letter-spacing:-.04em!important; font-weight:700!important; }
 [data-testid="stSidebar"] [data-baseweb="select"] * { color:var(--ink); }
-[data-testid="stSidebar"] input { background:rgba(255,255,255,.12)!important; color:#fff!important; border-color:rgba(255,255,255,.42)!important; }
+[data-testid="stSidebar"] input { background:#f7faf7!important; color:var(--ink)!important; border-color:#cddad1!important; }
 [data-testid="stSidebar"] [data-testid="stRadio"] label { padding:.35rem .2rem; }
-.block-container { max-width:1440px; padding-top:1.55rem; padding-bottom:4rem; }
-h1 { font-family:'Fraunces',Georgia,serif!important; color:var(--ink)!important; font-size:clamp(2.2rem,4vw,4rem)!important; letter-spacing:-.05em!important; margin:0!important; animation:rise .62s cubic-bezier(.2,.7,.2,1) both; }
-h2,h3 { color:var(--ink)!important; font-family:'DM Sans',sans-serif!important; letter-spacing:-.025em!important; }
-h2 { border-top:1px solid var(--rule); padding-top:1.8rem!important; margin-top:2.3rem!important; font-size:1.45rem!important; scroll-margin-top:1rem; }
-p,.stCaption { color:var(--ink-soft)!important; }
-[data-testid="stMetric"] { background:var(--panel); border:1px solid var(--rule); border-radius:15px; padding:1rem 1.15rem; box-shadow:var(--shadow); transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
-[data-testid="stMetric"]:hover { transform:translateY(-2px); border-color:#e8b9bc; box-shadow:0 18px 42px rgba(72,22,25,.11); }
-[data-testid="stMetricLabel"] { font-size:.76rem; font-weight:700; letter-spacing:.055em; text-transform:uppercase; color:var(--ink-soft)!important; }
-[data-testid="stMetricValue"] { color:var(--post-red-dark)!important; font-family:'DM Mono',monospace; font-size:1.55rem!important; }
-.stButton > button,.stDownloadButton > button { border-radius:10px; font-family:'DM Sans',sans-serif; font-weight:700; min-height:2.8rem; transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,background .18s ease,border-color .18s ease; }
-.stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"] { background:var(--post-red); border-color:var(--post-red); color:#fff; box-shadow:0 7px 16px rgba(201,37,44,.2); }
-.stButton > button[kind="primary"]:hover,.stDownloadButton > button[kind="primary"]:hover { background:var(--post-red-dark); border-color:var(--post-red-dark); box-shadow:0 12px 24px rgba(201,37,44,.25); }
-.stButton > button:hover,.stDownloadButton > button:hover { transform:translateY(-2px); border-color:#d9868a; box-shadow:0 8px 20px rgba(72,22,25,.13); }
+.block-container { max-width:1460px; padding-top:1.2rem; padding-bottom:4rem; }
+h1 { font-family:'DM Sans',sans-serif!important; color:var(--ink)!important; font-size:clamp(2.1rem,3.2vw,3.2rem)!important; font-weight:700!important; letter-spacing:-.055em!important; margin:0!important; animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
+h2,h3 { color:var(--ink)!important; font-family:'DM Sans',sans-serif!important; letter-spacing:-.035em!important; }
+h2 { border-top:1px solid var(--line); padding-top:1.55rem!important; margin-top:2rem!important; font-size:1.35rem!important; scroll-margin-top:1rem; }
+p,.stCaption { color:var(--muted)!important; }
+[data-testid="stMetric"] { background:var(--panel); border:1px solid var(--line); border-radius:17px; padding:1rem 1.15rem; box-shadow:var(--shadow); transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
+[data-testid="stMetric"]:hover { transform:translateY(-2px); border-color:#b9cec1; box-shadow:0 18px 42px rgba(42,65,55,.11); }
+[data-testid="stMetricLabel"] { font-size:.74rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)!important; }
+[data-testid="stMetricValue"] { color:var(--sage-dark)!important; font-family:'DM Mono',monospace; font-size:1.55rem!important; }
+.stButton > button,.stDownloadButton > button { border-radius:11px; font-family:'DM Sans',sans-serif; font-weight:700; min-height:2.85rem; transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,background .18s ease,border-color .18s ease; }
+.stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"] { background:var(--sage-deep); border-color:var(--sage-deep); color:#f8fbf8; box-shadow:0 7px 16px rgba(65,94,83,.18); }
+.stButton > button[kind="primary"]:hover,.stDownloadButton > button[kind="primary"]:hover { background:var(--sage-dark); border-color:var(--sage-dark); box-shadow:0 12px 24px rgba(65,94,83,.23); }
+.stButton > button:hover,.stDownloadButton > button:hover { transform:translateY(-2px); border-color:#abc2b4; box-shadow:0 8px 20px rgba(42,65,55,.12); }
 .stButton > button:active,.stDownloadButton > button:active { transform:translateY(0) scale(.985); }
-button:focus-visible,[tabindex="0"]:focus-visible { outline:3px solid rgba(201,37,44,.42)!important; outline-offset:3px!important; }
-[data-baseweb="input"]:focus-within,[data-baseweb="textarea"]:focus-within,[data-baseweb="select"]:focus-within { border-color:var(--post-red)!important; box-shadow:0 0 0 3px rgba(201,37,44,.13)!important; }
+button:focus-visible,[tabindex="0"]:focus-visible { outline:3px solid rgba(85,118,107,.45)!important; outline-offset:3px!important; }
+[data-baseweb="input"]:focus-within,[data-baseweb="textarea"]:focus-within,[data-baseweb="select"]:focus-within { border-color:var(--sage-deep)!important; box-shadow:0 0 0 3px rgba(85,118,107,.15)!important; }
 [data-baseweb="input"] input,[data-baseweb="textarea"] textarea { min-height:2.7rem; }
-[data-testid="stDialog"] [role="dialog"] { border-radius:18px; border:1px solid var(--rule); box-shadow:0 24px 70px rgba(45,14,17,.22); }
+[data-testid="stDialog"] [role="dialog"] { border-radius:20px; border:1px solid var(--line); box-shadow:0 24px 70px rgba(36,53,45,.2); }
 [data-testid="stDialog"] button { min-height:2.75rem; }
-[data-testid="stFileUploader"] { background:rgba(255,255,255,.88); border:1px dashed #d9868a; border-radius:15px; padding:.8rem; transition:background .2s ease,border-color .2s ease,transform .2s ease; }
-[data-testid="stFileUploader"]:hover { background:#fff; border-color:var(--post-red); transform:translateY(-1px); }
-[data-testid="stDataFrame"],[data-testid="stDataEditor"] { border:1px solid var(--rule); border-radius:13px; overflow:hidden; background:#fff; box-shadow:0 8px 24px rgba(72,22,25,.045); }
-[data-testid="stAlert"] { border-radius:12px; border-width:1px; animation:rise .28s ease-out both; }
-[data-testid="stExpander"] { border:1px solid var(--rule); border-radius:13px; background:rgba(255,255,255,.72); transition:border-color .2s ease,box-shadow .2s ease; }
-[data-testid="stExpander"]:hover { border-color:#dfb5b7; box-shadow:0 8px 22px rgba(72,22,25,.055); }
-.studio-kicker { color:var(--post-red)!important; font-family:'DM Mono',monospace; font-size:.76rem; font-weight:500; letter-spacing:.14em; text-transform:uppercase; margin-bottom:.45rem; }
-.workflow-rail { display:flex; flex-wrap:wrap; gap:.45rem; margin:1.55rem 0 1rem; }
-.workflow-rail span { border:1px solid var(--rule); background:rgba(255,255,255,.9); border-radius:999px; padding:.42rem .78rem; color:var(--ink-soft); font-size:.78rem; font-weight:600; transition:transform .2s ease,border-color .2s ease,color .2s ease; }
-.workflow-rail span:hover { transform:translateY(-2px); border-color:#d9868a; color:var(--post-red-dark); }
-.workflow-rail b { color:var(--post-red); margin-right:.3rem; }
-.trust-note { border-left:3px solid var(--post-red); background:rgba(255,255,255,.86); border-radius:0 10px 10px 0; padding:.7rem .9rem; margin:.7rem 0 1.2rem; color:var(--ink-soft); font-size:.88rem; }
+[data-testid="stFileUploader"] { background:#f9fbf9; border:1px dashed #aec5b7; border-radius:17px; padding:.8rem; transition:background .2s ease,border-color .2s ease,transform .2s ease; }
+[data-testid="stFileUploader"]:hover { background:#fbfcfa; border-color:var(--sage-deep); transform:translateY(-1px); }
+[data-testid="stDataFrame"],[data-testid="stDataEditor"] { border:1px solid var(--line); border-radius:15px; overflow:hidden; background:#fbfcfa; box-shadow:0 8px 24px rgba(42,65,55,.045); }
+[data-testid="stAlert"] { border-radius:13px; border-width:1px; animation:rise .28s ease-out both; }
+[data-testid="stExpander"] { border:1px solid var(--line); border-radius:15px; background:rgba(251,252,250,.82); transition:border-color .2s ease,box-shadow .2s ease; }
+[data-testid="stExpander"]:hover { border-color:#b9cec1; box-shadow:0 8px 22px rgba(42,65,55,.055); }
+.studio-kicker { color:var(--sage-dark)!important; font-family:'DM Mono',monospace; font-size:.72rem; font-weight:500; letter-spacing:.14em; text-transform:uppercase; margin-bottom:.45rem; }
+.workflow-rail { display:flex; flex-wrap:wrap; gap:.6rem; margin:1.25rem 0 .85rem; }
+.workflow-rail span { border:1px solid var(--line); background:#f9fbf9; border-radius:999px; padding:.45rem .8rem; color:var(--muted); font-size:.78rem; font-weight:600; transition:transform .2s ease,border-color .2s ease,color .2s ease; }
+.workflow-rail span:hover { transform:translateY(-2px); border-color:#abc2b4; color:var(--sage-dark); }
+.workflow-rail b { color:var(--sage-deep); margin-right:.35rem; }
+.trust-note { border-left:3px solid #9baa8f; background:#f4f1e9; border-radius:0 11px 11px 0; padding:.7rem .9rem; margin:.7rem 0 1.2rem; color:#59665d; font-size:.88rem; }
 .hero-shell { margin-bottom:.65rem; }
-@keyframes rise { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
+@keyframes rise { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:none } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; } }
-@media (max-width:700px) { .block-container { padding-left:1rem; padding-right:1rem; padding-top:1.25rem; } h1 { font-size:2.35rem!important; } }
+@media (max-width:700px) { .block-container { padding-left:1rem; padding-right:1rem; padding-top:1rem; } h1 { font-size:2.15rem!important; } }
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,8 +123,8 @@ def fiscal_year_label(today=None):
 # ---------------------------------------------------------------------------
 # Sidebar: API key + rate list + city/tier
 # ---------------------------------------------------------------------------
-st.sidebar.title("Claim setup")
-st.sidebar.caption("Choose how this claim is read and which CGHS rate tier applies.")
+st.sidebar.title("Case setup")
+st.sidebar.caption("Choose how to read this case and which CGHS rate tier applies.")
 
 def _get_secret(name):
     """Check st.secrets first (works for local secrets.toml and Streamlit Cloud secrets), then env vars."""
@@ -364,51 +364,254 @@ if tier_label != suggested:
     st.sidebar.caption(f"Note: '{city_input}' would normally suggest {suggested}.")
 
 def render_claim_orbit():
-    """A clear, humane arrival scene: an injured claimant approaches an assisting officer."""
+    """Render the calm casework welcome panel and its lightweight Three.js desk scene."""
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "india-post-logo.png")
     with open(logo_path, "rb") as logo_file:
         logo_data = base64.b64encode(logo_file.read()).decode("ascii")
-    components.html(f"""
-    <div class="hero" aria-label="An injured claimant walks to a desk where a postal officer is ready to assist">
-      <img class="india-post-logo" src="data:image/png;base64,{logo_data}" alt="India Post">
-      <div class="ambient light-one"></div><div class="ambient light-two"></div>
-      <svg class="scene" viewBox="0 0 790 320" aria-hidden="true">
-        <defs>
-          <linearGradient id="wall" x1="0" x2="1"><stop stop-color="#9f1920"/><stop offset="1" stop-color="#4f1117"/></linearGradient>
-          <linearGradient id="deskwood" x1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#e8d9da"/></linearGradient>
-          <linearGradient id="uniform" x1="0" x2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#eadfe0"/></linearGradient>
-          <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter><filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-opacity=".34"/></filter>
-        </defs>
-        <rect width="790" height="320" fill="url(#wall)"/><path d="M0 247H790" class="floor-line"/><path d="M0 248H790V320H0z" class="floor"/>
-        <g class="window"><rect x="568" y="38" width="158" height="111" rx="5"/><path d="M647 38v111M568 94h158"/></g>
-        <ellipse class="desk-shadow" cx="622" cy="265" rx="157" ry="18"/>
-        <g class="desk" filter="url(#shadow)"><path d="M500 183h219l18 23H482z"/><path d="M500 205h219v64H500z"/><path d="M518 269v34m177-34v34"/><path class="document" d="M548 174l54 5-5 19-54-5z"/><path class="document" d="M606 176l45 0 0 18-45 0z"/><path class="lamp" d="M682 178l12-38m-25 0h48m-24 0v37"/></g>
-        <g class="officer" filter="url(#shadow)"><ellipse class="chair" cx="630" cy="220" rx="40" ry="36"/><path class="officer-leg" d="M611 233l-5 50m38-50 12 50"/><path class="officer-shoe" d="M591 284h26m27 0h27"/><path class="officer-body" d="M602 141q28-17 55 0l8 76h-69z"/><circle class="skin" cx="630" cy="119" r="22"/><path class="hair" d="M608 116q8-27 43-14l3 18q-23-11-46 5z"/><path class="collar" d="M616 143l14 16 15-16"/><path class="badge" d="M646 160h12v18h-12z"/><path class="officer-arm" d="M654 153q35 19 55 31"/><path class="officer-hand" d="M709 184q10 4 15-3"/></g>
-        <g class="traveller" filter="url(#shadow)"><ellipse class="traveller-shadow" cx="252" cy="281" rx="60" ry="10"/><circle class="skin" cx="252" cy="111" r="23"/><path class="hair" d="M230 108q7-28 43-18l4 21q-25-13-47 4z"/><path class="traveller-shirt" d="M228 136q23 12 48 0l11 83h-73z"/><path class="traveller-arm" d="M230 151l-27 44"/><path class="traveller-hand" d="M201 194q-3 9 6 12"/><path class="traveller-arm helping" d="M274 150l33 24"/><path class="traveller-hand" d="M306 173q9 3 12-5"/><path class="trouser leg-back" d="M229 216l-15 60"/><path class="trouser leg-front" d="M265 216l21 60"/><path class="shoe" d="M198 278h33m42 0h34"/><path class="brace" d="M260 220l20 54m-31-32 28 0"/><path class="crutch" d="M205 174l-16 105m0-54h29m-29 54h-13"/></g>
-        <g class="papers"><path d="M355 232l36-8 8 28-37 8z"/><path d="M385 226l36-7 8 28-36 8z"/></g>
-      </svg>
-      <div class="copy"><div class="eyebrow">Department of Posts · medical reimbursement</div><h1>Care, from<br>claim to <i>clarity.</i></h1><p>A clear route from medical papers to a reviewed draft—with assistance at every step.</p><div class="chips"><span>CGHS rate intelligence</span><span>Officer review required</span></div></div>
-      <div class="scene-label"><b>ASSISTED REVIEW</b><small>claim desk · 01—04</small></div>
+    html = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
+* { box-sizing:border-box; }
+html,body { margin:0; min-height:100%; background:transparent; font-family:'DM Sans',sans-serif; }
+.hero { height:356px; position:relative; overflow:hidden; border:1px solid #dce5df; border-radius:26px; background:linear-gradient(112deg,#f7f8f3 0%,#edf3ee 55%,#e7eff0 100%); color:#29363b; isolation:isolate; box-shadow:0 18px 46px rgba(42,65,55,.075); }
+.hero:before { content:''; position:absolute; width:440px; height:440px; right:6%; top:-220px; border-radius:50%; background:radial-gradient(circle,#e1ece6 0%,rgba(225,236,230,0) 70%); }
+.hero-copy { position:relative; z-index:2; padding:42px 48px; width:57%; }
+.eyebrow { color:#5f7d70; font-size:11px; line-height:1.4; letter-spacing:.13em; text-transform:uppercase; font-weight:700; }
+.hero h1 { margin:14px 0 12px; max-width:560px; color:#29363b; font:700 clamp(34px,4vw,48px)/1.04 'DM Sans',sans-serif; letter-spacing:-.055em; }
+.hero h1 em { color:#607f72; font-style:normal; }
+.hero-copy p { margin:0; max-width:440px; color:#607075; font-size:14px; line-height:1.62; }
+.stage-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:23px; }
+.stage-list span { border:1px solid rgba(118,145,128,.22); background:rgba(251,252,250,.76); border-radius:999px; padding:7px 11px; color:#52655e; font-size:11px; font-weight:600; }
+.stage-list b { margin-right:5px; color:#708e7f; font-variant-numeric:tabular-nums; }
+.review-note { margin-top:21px; display:flex; align-items:center; gap:8px; color:#718079; font-size:11px; font-weight:600; }
+.review-note i { width:7px; height:7px; border-radius:50%; background:#9baa8f; box-shadow:0 0 0 4px rgba(155,170,143,.17); }
+.brand-mark { position:absolute; z-index:3; right:26px; top:22px; width:78px; height:auto; padding:7px 9px; border:1px solid rgba(160,177,165,.25); border-radius:12px; background:rgba(251,252,250,.92); box-shadow:0 8px 20px rgba(42,65,55,.07); }
+.scene-wrap { position:absolute; z-index:1; right:0; bottom:0; width:51%; height:100%; }
+#desk-scene { width:100%; height:100%; display:block; }
+.scene-fallback { position:absolute; inset:0; display:grid; place-items:center; }
+.fallback-file { position:relative; width:220px; height:150px; border:1px solid #d9e4dc; border-radius:18px; background:#f9fbf8; box-shadow:12px 18px 26px rgba(71,97,83,.13); transform:rotate(-7deg); }
+.fallback-file:before,.fallback-file:after { content:''; position:absolute; left:24px; right:24px; height:8px; border-radius:8px; background:#dce7df; }
+.fallback-file:before { top:45px; box-shadow:0 22px #e7eee8,0 44px #e7eee8; }
+.fallback-file:after { left:auto; right:25px; top:20px; width:44px; height:44px; border-radius:50%; border:5px solid #9bb5a6; background:transparent; }
+.hero.has-three .scene-fallback { display:none; }
+@media (max-width:760px) {
+  .hero { height:372px; }
+  .hero-copy { width:100%; padding:32px 26px; }
+  .hero h1 { font-size:37px; max-width:370px; }
+  .hero-copy p { max-width:440px; padding-right:22px; }
+  .stage-list { max-width:430px; }
+  .scene-wrap { width:58%; height:49%; opacity:.65; }
+  .brand-mark { right:17px; top:17px; width:65px; }
+  .review-note { margin-top:15px; }
+}
+@media (max-width:430px) {
+  .hero { height:372px; border-radius:21px; }
+  .hero-copy { padding:29px 21px; }
+  .hero h1 { font-size:33px; }
+  .stage-list { gap:6px; }
+  .stage-list span { padding:6px 9px; font-size:10px; }
+  .scene-wrap { width:63%; height:43%; }
+}
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; } }
+</style>
+</head>
+<body>
+<section class="hero" aria-label="Medical claims case scrutiny workspace">
+  <div class="hero-copy">
+    <div class="eyebrow">Department of Posts · Medical claims desk</div>
+    <h1>Review each case.<br><em>See every detail.</em></h1>
+    <p>A practical workspace for checking claim documents, reviewing CGHS rates and preparing sanction drafts. You stay in control of every decision.</p>
+    <div class="stage-list" aria-label="Four review stages">
+      <span><b>01</b>Intake</span><span><b>02</b>Claimant</span><span><b>03</b>Rate scrutiny</span><span><b>04</b>Draft</span>
     </div>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
-      *{{box-sizing:border-box}}.hero{{height:320px;position:relative;overflow:hidden;border-radius:22px;background:linear-gradient(118deg,#c9252c 0%,#a51a21 46%,#56151a 100%);color:#fff;font-family:'DM Sans',sans-serif;isolation:isolate;box-shadow:0 18px 50px rgba(96,20,25,.17)}}.ambient{{position:absolute;z-index:1;border-radius:50%;filter:blur(32px);opacity:.42}}.light-one{{width:260px;height:260px;right:-40px;top:-92px;background:#fff}}.light-two{{width:260px;height:180px;right:200px;bottom:-130px;background:#f5a4a7;opacity:.19}}.india-post-logo{{position:absolute;z-index:5;right:25px;top:20px;width:96px;height:auto;padding:7px;background:rgba(255,255,255,.98);border-radius:8px;box-shadow:0 8px 25px rgba(0,0,0,.2)}}.copy{{position:relative;z-index:4;padding:39px 40px;max-width:470px}}.eyebrow{{font:500 11px 'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#ffe0e1}}.copy h1{{font-family:Fraunces,Georgia,serif;font-size:49px;line-height:.94;letter-spacing:-.06em;margin:10px 0 15px}}.copy h1 i{{color:#fff;font-weight:600}}.copy p{{margin:0;max-width:385px;color:#fff;font-size:14px;line-height:1.48;opacity:.88}}.chips{{display:flex;gap:8px;margin-top:21px;flex-wrap:wrap}}.chips span{{padding:6px 10px;border:1px solid rgba(255,255,255,.38);border-radius:99px;background:rgba(255,255,255,.1);font-size:11px;font-weight:600;backdrop-filter:blur(8px)}}.scene-label{{position:absolute;z-index:4;right:143px;top:28px;text-align:right}}.scene-label b{{display:block;font:500 10px 'DM Mono',monospace;letter-spacing:.11em;color:#fff}}.scene-label small{{font-size:10px;color:#ffe0e1;letter-spacing:.06em}}.scene{{position:absolute;z-index:2;right:0;bottom:0;height:100%;width:67%;overflow:visible}}.floor{{fill:#57141a}}.floor-line,.window rect,.window path{{stroke:#fff;stroke-width:2;fill:none;opacity:.44}}.desk path{{fill:url(#deskwood);stroke:#fff;stroke-width:1.2}}.desk .document{{fill:#fff;stroke:#eadfe0}}.desk .lamp{{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}}.desk-shadow,.traveller-shadow{{fill:#24080a;opacity:.4;filter:url(#soft)}}.chair{{fill:#71191f;stroke:#e78b8f;stroke-width:2}}.skin{{fill:#c88361}}.hair{{fill:#1e2024}}.officer-body{{fill:url(#uniform);stroke:#eadfe0;stroke-width:1.4}}.collar{{fill:#fff;stroke:#eadfe0;stroke-width:1.3}}.badge{{fill:#c9252c}}.officer-arm,.traveller-arm{{fill:none;stroke:#fff;stroke-width:13;stroke-linecap:round}}.officer-hand,.traveller-hand{{fill:none;stroke:#c88361;stroke-width:10;stroke-linecap:round}}.officer-leg,.trouser{{fill:none;stroke:#343034;stroke-width:16;stroke-linecap:round}}.officer-shoe,.shoe{{fill:none;stroke:#201c1f;stroke-width:10;stroke-linecap:round}}.traveller-shirt{{fill:#fff;stroke:#eadfe0;stroke-width:1.3}}.brace{{stroke:#c9252c;stroke-width:5;stroke-linecap:round}}.crutch{{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round}}.papers path{{fill:#fff;stroke:#eadfe0;stroke-width:1}}.traveller{{animation:arrival 8s cubic-bezier(.35,.02,.28,1) infinite;transform-origin:center}}.leg-back{{animation:leg-back .72s ease-in-out infinite alternate;transform-origin:229px 216px}}.leg-front{{animation:leg-front .72s .36s ease-in-out infinite alternate;transform-origin:265px 216px}}.crutch{{animation:crutch-step .72s .18s ease-in-out infinite alternate;transform-origin:205px 174px}}.helping{{animation:reassure 8s ease-in-out infinite}}.officer-arm{{animation:welcome 8s ease-in-out infinite}}.papers{{animation:paper-offer 8s ease-in-out infinite}}@keyframes arrival{{0%,15%{{transform:translateX(-155px)}}55%,100%{{transform:translateX(115px)}}}}@keyframes leg-back{{to{{transform:rotate(10deg)}}}}@keyframes leg-front{{to{{transform:rotate(-12deg)}}}}@keyframes crutch-step{{to{{transform:rotate(5deg) translateY(3px)}}}}@keyframes welcome{{0%,44%{{transform:rotate(0)}}55%,78%{{transform:rotate(-7deg)}}100%{{transform:rotate(0)}}}}@keyframes reassure{{0%,47%{{transform:translate(0,0)}}58%,76%{{transform:translate(9px,1px)}}100%{{transform:translate(0,0)}}}}@keyframes paper-offer{{0%,45%{{opacity:0;transform:translateX(-28px)}}58%,82%{{opacity:1;transform:translateX(0)}}100%{{opacity:0;transform:translateX(12px)}}}}@media(max-width:700px){{.hero{{height:300px}}.copy{{padding:34px 25px;max-width:410px}}.copy h1{{font-size:42px}}.scene{{width:100%;opacity:.42}}.india-post-logo{{right:16px;top:14px;width:76px}}.scene-label{{display:none}}}}@media(prefers-reduced-motion:reduce){{.traveller,.leg-back,.leg-front,.crutch,.helping,.officer-arm,.papers{{animation:none}}}}
-    </style>
-    """, height=320)
+    <div class="review-note"><i aria-hidden="true"></i> Officer-reviewed decision support · Drafts only</div>
+  </div>
+  <img class="brand-mark" src="data:image/png;base64,__LOGO_BASE64__" alt="India Post">
+  <div class="scene-wrap" aria-hidden="true">
+    <div class="scene-fallback"><div class="fallback-file"></div></div>
+    <canvas id="desk-scene"></canvas>
+  </div>
+</section>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+
+const host = document.querySelector('.scene-wrap');
+const canvas = document.querySelector('#desk-scene');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+try {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+  renderer.setClearColor(0x000000, 0);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
+  camera.position.set(0, 0, 8.3);
+  scene.add(new THREE.HemisphereLight(0xf7faf6, 0xc8d7ce, 2.1));
+  const key = new THREE.DirectionalLight(0xffffff, 2.1);
+  key.position.set(-3, 5, 7);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xd9e7ed, 1.2);
+  fill.position.set(4, 0, 5);
+  scene.add(fill);
+
+  const desk = new THREE.Group();
+  scene.add(desk);
+
+  function roundedPanel(width, height, depth, color, x, y, z, angle=0) {
+    const radius = Math.min(0.16, width * 0.08, height * 0.08);
+    const shape = new THREE.Shape();
+    shape.moveTo(-width/2+radius,-height/2);
+    shape.lineTo(width/2-radius,-height/2);
+    shape.quadraticCurveTo(width/2,-height/2,width/2,-height/2+radius);
+    shape.lineTo(width/2,height/2-radius);
+    shape.quadraticCurveTo(width/2,height/2,width/2-radius,height/2);
+    shape.lineTo(-width/2+radius,height/2);
+    shape.quadraticCurveTo(-width/2,height/2,-width/2,height/2-radius);
+    shape.lineTo(-width/2,-height/2+radius);
+    shape.quadraticCurveTo(-width/2,-height/2,-width/2+radius,-height/2);
+    const geometry = new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:.025,bevelThickness:.025});
+    const mesh = new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.67,metalness:.02}));
+    mesh.position.set(x,y,z);
+    mesh.rotation.z = angle;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    desk.add(mesh);
+    return mesh;
+  }
+  function bar(width,height,color,x,y,z,angle=0) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(width,height,.025),
+      new THREE.MeshStandardMaterial({color,roughness:.8})
+    );
+    mesh.position.set(x,y,z);
+    mesh.rotation.z=angle;
+    desk.add(mesh);
+    return mesh;
+  }
+
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(2.15,48),
+    new THREE.MeshBasicMaterial({color:0xa9bbb0,transparent:true,opacity:.18})
+  );
+  ground.scale.set(1.3,.55,1);
+  ground.position.set(0,-1.35,-.5);
+  desk.add(ground);
+
+  roundedPanel(3.55,2.42,.14,0xcbdcd1,0,-.1,-.08,-.025);
+  roundedPanel(3.32,2.22,.12,0xf7f8f3,-.08,.03,.12,.035);
+  roundedPanel(3.1,2.03,.1,0xfafbf8,-.12,.10,.3,-.035);
+
+  // Document details are abstract lines and fields, not status or approval marks.
+  bar(1.38,.055,0xa8beb0,-.62,.63,.46,-.035);
+  bar(1.95,.035,0xd8e2da,-.34,.31,.46,-.035);
+  bar(1.95,.035,0xd8e2da,-.34,.12,.46,-.035);
+  bar(1.63,.035,0xd8e2da,-.50,-.07,.46,-.035);
+  bar(1.84,.035,0xe3eae4,-.39,-.26,.46,-.035);
+  bar(.88,.20,0xe8eee8,.35,-.66,.46,-.035);
+  bar(.58,.045,0x789687,.35,-.66,.49,-.035);
+
+  const tab = new THREE.Mesh(
+    new THREE.BoxGeometry(.82,.18,.13),
+    new THREE.MeshStandardMaterial({color:0xa9c1b1,roughness:.58})
+  );
+  tab.position.set(-1.1,1.18,.03);
+  tab.rotation.z=-.035;
+  desk.add(tab);
+
+  // A glass-like loupe frames the document as it is reviewed.
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(.56,.075,14,56),
+    new THREE.MeshStandardMaterial({color:0x89a89a,roughness:.26,metalness:.2})
+  );
+  ring.position.set(1.0,.03,.72);
+  desk.add(ring);
+  const glass = new THREE.Mesh(
+    new THREE.CircleGeometry(.48,48),
+    new THREE.MeshPhysicalMaterial({color:0xdce9e8,transparent:true,opacity:.20,roughness:.12,metalness:.02})
+  );
+  glass.position.set(1.0,.03,.70);
+  desk.add(glass);
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(.065,.085,.9,18),
+    new THREE.MeshStandardMaterial({color:0x789687,roughness:.35,metalness:.12})
+  );
+  handle.position.set(1.40,-.59,.69);
+  handle.rotation.z=-.67;
+  desk.add(handle);
+  const grip = new THREE.Mesh(
+    new THREE.CylinderGeometry(.083,.09,.22,18),
+    new THREE.MeshStandardMaterial({color:0x607f72,roughness:.4})
+  );
+  grip.position.set(1.67,-.98,.69);
+  grip.rotation.z=-.67;
+  desk.add(grip);
+
+  const beadMaterial = new THREE.MeshStandardMaterial({color:0xb4c9bd,roughness:.4});
+  [[-1.85,.88,.12],[1.9,.88,-.1],[1.88,-1.12,.22],[-1.72,-1.0,.2]].forEach(([x,y,z],i)=>{
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(i===0?.09:.055,16,12),beadMaterial);
+    bead.position.set(x,y,z);
+    desk.add(bead);
+  });
+
+  function resize() {
+    const width = Math.max(host.clientWidth, 1);
+    const height = Math.max(host.clientHeight, 1);
+    renderer.setSize(width,height,false);
+    camera.aspect = width/height;
+    camera.position.x = width < 430 ? .05 : .32;
+    camera.position.y = width < 430 ? -.12 : -.02;
+    camera.updateProjectionMatrix();
+    renderer.render(scene,camera);
+  }
+  let targetX=0, targetY=0;
+  host.addEventListener('pointermove',(event)=>{
+    if (reduceMotion) return;
+    const rect=host.getBoundingClientRect();
+    targetY=((event.clientX-rect.left)/rect.width-.5)*.12;
+    targetX=((event.clientY-rect.top)/rect.height-.5)*-.08;
+  },{passive:true});
+  host.addEventListener('pointerleave',()=>{targetX=0;targetY=0;},{passive:true});
+  new ResizeObserver(resize).observe(host);
+  resize();
+  document.querySelector('.hero').classList.add('has-three');
+
+  if (!reduceMotion) {
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed=clock.getElapsedTime();
+      desk.rotation.y += (targetY-desk.rotation.y)*.035;
+      desk.rotation.x += (targetX-desk.rotation.x)*.035;
+      desk.position.y = Math.sin(elapsed*.72)*.035;
+      renderer.render(scene,camera);
+    }
+    animate();
+  }
+} catch (error) {
+  // The CSS document illustration remains as a graceful fallback when WebGL/CDN is unavailable.
+}
+</script>
+</body>
+</html>"""
+    components.html(html.replace("__LOGO_BASE64__", logo_data), height=372, scrolling=False)
 
 
 render_claim_orbit()
 _division_name = (st.session_state.get("office_division") or "").strip()
-st.caption(f"{_division_name + ' — ' if _division_name else ''}decision-support tool. "
-           "Every match and amount must be reviewed by the processing officer before a case is sanctioned.")
+st.caption(f"{_division_name + ' · ' if _division_name else ''}Case scrutiny workspace")
 
 st.markdown(
-    '<div class="workflow-rail"><span><b>01</b>Choose reading mode</span><span><b>02</b>Read the claim</span>'
-    '<span><b>03</b>Review rates</span><span><b>04</b>Issue documents</span></div>',
+    '<div class="workflow-rail"><span><b>01</b>Intake documents</span><span><b>02</b>Confirm claimant</span>'
+    '<span><b>03</b>Scrutinize rates</span><span><b>04</b>Prepare drafts</span></div>',
     unsafe_allow_html=True,
 )
-st.markdown('<div class="trust-note">Drafts only — review each match, rate and final amount before sanction. '
-            'Your API key remains in Streamlit secrets and is never shown in the workspace.</div>', unsafe_allow_html=True)
+st.markdown('<div class="trust-note"><strong>Officer review required.</strong> Confirm each match, CGHS rate and final amount before sanction. '
+            'This workspace prepares drafts for your decision.</div>', unsafe_allow_html=True)
 with st.expander("CGHS facilities at a glance", expanded=False):
     st.markdown("""
     - OPD treatment, medicines and specialist consultation through CGHS Wellness Centres, polyclinics and eligible hospitals.
@@ -427,7 +630,7 @@ if "line_items" not in st.session_state:
 # ---------------------------------------------------------------------------
 # Step 1: Upload claim documents
 # ---------------------------------------------------------------------------
-st.header("01 — Add claim documents")
+st.header("01 — Intake documents")
 
 if provider == P_MANUAL:
     st.info(
@@ -662,7 +865,7 @@ diagnosis = st.text_area(
 # ---------------------------------------------------------------------------
 # Step 3: Line-item matching against CGHS rates
 # ---------------------------------------------------------------------------
-st.header("03 — Review CGHS rate check")
+st.header("03 — Scrutinize CGHS rates")
 
 
 def _num(x):
@@ -723,8 +926,9 @@ def _use_selected_code(row, field, selected_code):
 
 for index, review_row in enumerate(st.session_state.review_rows):
     row_id = review_row["id"]
-    label = _txt(review_row.get("description")) or "New item"
-    with st.expander(f"{index + 1:02d} · {label}", expanded=True):
+    label = _txt(review_row.get("description")) or "New review item"
+    amount_label = f"₹{_num(review_row.get('claimed_amount')):,.0f}"
+    with st.expander(f"{index + 1:02d} · {label} · {amount_label}", expanded=(index == 0)):
         c1, c2 = st.columns(2)
         with c1:
             selected_billed = st.selectbox(
@@ -835,15 +1039,15 @@ sheet = pd.DataFrame([{
 def _row_colour(row):
     status = row['Result']
     if status in (INCLUDED, REPEAT, FORCED_EXCLUDE):
-        bg = 'rgba(220, 53, 69, 0.18)'       # held back
+        bg = 'rgba(222, 233, 225, 0.72)'     # held back
     elif status == UNMATCHED or str(status).startswith('REVIEW'):
-        bg = 'rgba(255, 193, 7, 0.22)'       # needs the officer's attention
+        bg = 'rgba(244, 230, 209, 0.72)'     # needs the officer's attention
     else:
         bg = ''
     return [f'background-color: {bg}' if bg else '' for _ in row]
 
 
-st.subheader("Calculation sheet")
+st.subheader("CGHS rate calculation")
 if len(sheet):
     _money = lambda v: "-" if v is None or pd.isna(v) else f"{float(v):,.2f}"
     st.dataframe(
@@ -891,7 +1095,7 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # Step 4: Generate documents
 # ---------------------------------------------------------------------------
-st.header("04 — Prepare sanction documents")
+st.header("04 — Prepare sanction drafts")
 
 
 def _apply_office_profile(data):

@@ -6,22 +6,22 @@ Medical Claims Studio is a decision-support workspace for Department of Posts pr
 
 ## Visual direction
 
-The interface uses India Post red (`#C9252C`) and white as its identity, balanced with soft neutral paper surfaces and dark ink for comfortable document review. Red marks primary actions, active states and the assisted-review hero; white and pale rose surfaces keep claim details legible. Motion is small and purposeful: the hero illustrates assistance at the claim desk, while buttons, metrics and disclosures respond to pointer and keyboard interaction.
+The interface is a calm casework desk for processing officers. Soft sage (`#DFEAE3`), mist blue (`#E2EDF0`), warm sand (`#F2E9DE`) and lavender (`#EBE8F1`) support long review sessions. Deep slate (`#29363B`) carries text; muted sage (`#55766B`) marks primary actions and focus. Colour reinforces status, while every result retains its written label and explanation.
 
-Display type: Fraunces, used only for the product name. Interface/body: DM Sans. Amounts use DM Mono so digits align visually. Motion is one short entrance and small button lift; `prefers-reduced-motion` disables it.
+DM Sans provides a compact, clear interface. Amounts use DM Mono so digits align. Motion confirms interaction with short hover, press and entrance transitions. The Three.js scene moves gently and pauses under `prefers-reduced-motion`.
 
 ## Layout and tokens
 
-- Maximum content width: 1440px, compact padding on narrow screens.
+- Maximum content width: 1460px, compact padding on narrow screens.
 - Grid: Streamlit responsive columns; controls collapse naturally on smaller viewports.
-- Radius: 9px for controls, 12–14px for data surfaces and feedback.
-- Primary action: India Post red (`#C9252C`), with a darker red on hover.
-- Attention states: Streamlit warning/error semantics plus a readable calculation-sheet row tint.
+- Radius: 11px for controls, 13–17px for data surfaces and feedback.
+- Primary action: muted sage (`#55766B`), with a darker sage on hover.
+- Attention states: Streamlit warning/error semantics plus a readable calculation-sheet row tint and written result.
 - Scrollbars: platform-owned Streamlit surfaces remain visible and operable.
 
 ## Runtime mapping
 
-`app.py` owns the runtime theme and component styling through its top-level CSS block. Its `render_claim_orbit` function owns the isolated animated SVG hero scene. This file owns design intent; CSS custom properties in that block implement its named tokens. No other styling system is in use.
+`app.py` owns the runtime theme and component styling through its top-level CSS block. Its `render_claim_orbit` function owns an isolated Three.js document-review scene, with a CSS illustration when WebGL or the CDN is unavailable. This file owns design intent; CSS custom properties in that block implement its named tokens.
 
 ## Accessibility and motion
 
@@ -29,8 +29,8 @@ The workflow preserves Streamlit's semantic controls and visible focus behavior.
 
 ## Hero scene
 
-The hero is an assisted-arrival scene: an injured claimant, using a crutch and leg brace, walks clearly from the left toward a staffed claims desk. The seated officer reaches out to help, and the documents move into view at the point of arrival. This is a humane representation of the tool's purpose, not an implication that a claim has been approved. It uses layered lighting, shadows and material gradients for a more dimensional, cinematic result while preserving a crisp animated SVG on any deployment. The supplied India Post logo is the only logo used and appears in a white mark at the hero's upper-right.
+The hero shows an abstract stack of claim papers under a loupe. It represents close scrutiny, never automatic approval. Three.js draws the three-dimensional scene in a separate Streamlit component, with small pointer-responsive rotation and gentle floating motion. A flat CSS document remains visible if WebGL or the pinned CDN module is unavailable. The India Post logo stays in a small mark for departmental context.
 
 ## Review controls
 
-Rate review uses one compact disclosure per claim item so an officer can see the billed item, code choices, amount and payment treatment together. The Billed code and Matched CGHS code controls are native searchable selects backed by the same CGHS master catalogue. A selection reveals the official description and tier-specific rate; it never silently replaces the amount actually billed. The applicant-form diagnosis is shown as a separate, source-labelled review field so a diagnosis from a summary cannot masquerade as the applicant's declaration.
+Rate review uses one compact disclosure per claim item. The first entry opens automatically; the rest show their description and claimed amount until needed. The Billed code and Matched CGHS code controls are native searchable selects backed by the same CGHS master catalogue. A selection reveals the official description and tier-specific rate; it never silently replaces the amount actually billed. The applicant-form diagnosis is shown as a separate, source-labelled review field so a diagnosis from a summary cannot masquerade as the applicant's declaration.
