@@ -236,7 +236,8 @@ def build_calculation_checklist(case, items, out_path):
               f"Reference: {case['memo_no']}", space_after=4)
     _add_para(doc, f"CGHS tier: {case.get('tier_label','-')}  |  "
               f"Accreditation: {case.get('nabh_status','-')}  |  "
-              f"Mode: {case.get('fetch_mode','-')}", space_after=10)
+              f"Mode: {case.get('fetch_mode','-')}  |  "
+              f"Rate sheet ID: {case.get('rate_sheet_id','-')}", space_after=10)
     table = doc.add_table(rows=1, cols=7)
     table.style = 'Table Grid'
     table.autofit = False

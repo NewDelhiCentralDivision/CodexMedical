@@ -15,6 +15,7 @@ import json
 import base64
 import datetime
 import tempfile
+import hashlib
 
 import streamlit as st
 import pandas as pd
@@ -30,6 +31,7 @@ from bundles import (
 )
 from num2words_inr import rupees_in_words
 from review_logic import resolve_item, AUTOMATIC, CODE_ONLY
+from claim_audit import fingerprint, merge_extractions, reconcile
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 MASTER_JSON = os.path.join(DATA_DIR, 'cghs_all_tiers.json')
@@ -333,7 +335,9 @@ def get_master(_uploaded_bytes, _uploaded_name):
 uploaded_bytes = custom_master.read() if custom_master else None
 uploaded_name = custom_master.name if custom_master else None
 MASTER_DATA, BY_CODE, DESCRIPTIONS = get_master(uploaded_bytes, uploaded_name)
+rate_sheet_id = hashlib.sha256(json.dumps(MASTER_DATA, sort_keys=True, default=str).encode()).hexdigest()[:12]
 st.sidebar.success(f"{len(MASTER_DATA)} CGHS codes loaded (all 3 tiers)")
+st.sidebar.caption(f"Rate sheet ID: {rate_sheet_id}")
 _rule_problems = validate_rules(BY_CODE)
 if _rule_problems:
     # Only happens with a replacement rate list that renumbers or drops codes the
@@ -657,7 +661,7 @@ else:
 def file_to_pil_images(f):
     """Convert an uploaded file (image or PDF) into a list of PIL Image objects."""
     from PIL import Image
-    raw = f.read()
+    raw = f.getvalue()
     images = []
     if f.type == "application/pdf" or f.name.lower().endswith(".pdf"):
         from pdf2image import convert_from_bytes
@@ -666,8 +670,9 @@ def file_to_pil_images(f):
         images.append(Image.open(io.BytesIO(raw)))
     return images
 
-EXTRACTION_PROMPT = """You are reading scanned/photographed CGHS medical reimbursement claim documents
-(claim form, bill/receipt, doctor's referral, CGHS card). Extract the following as strict JSON, with
+EXTRACTION_PROMPT = """You are reading numbered pages of a CGHS medical reimbursement case file.
+This batch may contain a claim form, bills, receipts, a pharmacy invoice, referrals, reports or cards.
+Extract the following as strict JSON, with
 no commentary before or after:
 
 {
@@ -687,23 +692,38 @@ no commentary before or after:
   "diagnosis": string or null,               // diagnosis written in the applicant's own claim/reimbursement form only
   "diagnosis_source": string or null,        // "Applicant form" when that form states it; otherwise null
   "total_claimed_amount": number or null,
+  "claim_form_page": integer or null,
+  "bill_totals": [{"invoice_number": string, "printed_total": number, "source_page": integer}],
   "line_items": [
     {
-      "description": string,          // the test/treatment name exactly as printed; expand common abbreviations in parentheses if unambiguous, e.g. "CBC (Complete Haemogram)"
-      "code": string or null,         // only a CGHS code actually visible in the document; never guess or invent a code
-      "claimed_amount": number
+      "description": string,
+      "code": string or null,
+      "claimed_amount": number,
+      "source_page": integer,
+      "source_document_type": "bill" or "receipt" or "pharmacy invoice",
+      "invoice_number": string or null,
+      "line_number": string or null,
+      "service_date": string or null
     }
   ]
 }
 
-Read every page provided. First identify the applicant's completed reimbursement/claim form. Extract
+Page labels supplied with each image are the source_page numbers. Read every page provided.
+First identify the applicant's completed reimbursement/claim form. Extract claimant_name,
+employee_id and total_claimed_amount only from that form; set claim_form_page to its page number.
+Never create payable rows from the claim form's summary, prescriptions, referrals, orders,
+discharge summaries, reports, cards, deposits or repeated receipt totals. A multi-page receipt
+is one invoice; include its numbered rows once and its printed total once. Distinct dated
+receipts for the same test are distinct bill rows. Hospital internal procedure codes are not
+CGHS codes unless clearly labelled as CGHS. Extract
 `diagnosis` only from the diagnosis field or handwritten/typed diagnosis on that applicant form. Do NOT
 copy a diagnosis from a discharge summary, prescription, referral, bill, laboratory report or any other
 attachment, even if those documents are more detailed. If the applicant form has no diagnosis, return
-null for both diagnosis fields. For line_items, include every
-distinct billed test/treatment/procedure row you can find, with its exact price as printed - including
-rows priced at 0. If no CGHS code is printed, leave code null: the application will match the description against
-the official rate master and will mark uncertain results for officer review. Do not invent values. Output ONLY the JSON object."""
+null for both diagnosis fields. For line_items, include every billed row with its exact
+amount, including rows priced at 0. Do not use quantity, unit rate, deposit, subtotal or
+invoice total as a line amount. If a digit, code, invoice ID or amount is unreadable, use null
+and let the officer review it. Never infer codes or rates; the application uses its own rate master.
+Output ONLY the JSON object."""
 
 def _clean_json_text(raw_text):
     raw_text = raw_text.strip().strip("`")
@@ -711,30 +731,38 @@ def _clean_json_text(raw_text):
         raw_text = raw_text[4:].strip()
     return raw_text
 
-def extract_with_anthropic(images, api_key, model_name):
+def extract_with_anthropic(images, api_key, model_name, start_page=1):
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
     content_blocks = []
-    for im in images:
+    for page_no, im in enumerate(images, start_page):
         buf = io.BytesIO()
         im.convert("RGB").save(buf, format="PNG")
         b64 = base64.b64encode(buf.getvalue()).decode()
+        content_blocks.append({"type": "text", "text": f"Source page {page_no}"})
         content_blocks.append({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}})
     content_blocks.append({"type": "text", "text": EXTRACTION_PROMPT})
 
     resp = client.messages.create(
         model=model_name,
-        max_tokens=4000,
+        max_tokens=12000,
+        temperature=0,
         messages=[{"role": "user", "content": content_blocks}]
     )
     raw_text = "".join(b.text for b in resp.content if b.type == "text")
     return json.loads(_clean_json_text(raw_text))
 
-def extract_with_gemini(images, api_key, model_name):
+def extract_with_gemini(images, api_key, model_name, start_page=1):
     from google import genai
     client = genai.Client(api_key=api_key)
-    contents = list(images) + [EXTRACTION_PROMPT]
-    resp = client.models.generate_content(model=model_name, contents=contents)
+    contents = []
+    for page_no, im in enumerate(images, start_page):
+        contents.extend([f"Source page {page_no}", im])
+    contents.append(EXTRACTION_PROMPT)
+    resp = client.models.generate_content(
+        model=model_name, contents=contents,
+        config={"temperature": 0, "response_mime_type": "application/json"},
+    )
     return json.loads(_clean_json_text(resp.text))
 
 def run_local_ocr(images):
@@ -774,21 +802,35 @@ if provider in (P_CLAUDE, P_GEMINI) and run_ocr:
     else:
         with st.spinner(f"Reading documents with {provider}..."):
             try:
-                images = []
-                for f in uploaded_files:
-                    images.extend(file_to_pil_images(f))
-
-                if provider == P_CLAUDE:
-                    extracted = extract_with_anthropic(images, api_key, model_name)
+                extraction_key = hashlib.sha256(
+                    (fingerprint(uploaded_files) + provider + model_name + EXTRACTION_PROMPT).encode()
+                ).hexdigest()
+                if st.session_state.get("extraction_key") == extraction_key:
+                    st.info("These are the same documents and reading settings. The saved review is shown below unchanged.")
                 else:
-                    extracted = extract_with_gemini(images, api_key, model_name)
-
-                st.session_state.extracted = extracted
-                st.session_state.line_items = extracted.get("line_items", [])
-                # A fresh extraction starts a fresh officer review. Do not carry
-                # code choices from a previous claim into the new one.
-                st.session_state.pop("review_rows", None)
-                st.success("Extraction complete. Review and correct the details below.")
+                    images = []
+                    for f in uploaded_files:
+                        images.extend(file_to_pil_images(f))
+                    chunks = []
+                    for start in range(0, len(images), 5):
+                        batch = images[start:start + 5]
+                        if provider == P_CLAUDE:
+                            chunks.append(extract_with_anthropic(batch, api_key, model_name, start + 1))
+                        else:
+                            chunks.append(extract_with_gemini(batch, api_key, model_name, start + 1))
+                    extracted = merge_extractions(chunks)
+                    st.session_state.extracted = extracted
+                    st.session_state.line_items = extracted.get("line_items", [])
+                    st.session_state.extraction_key = extraction_key
+                    # New source documents need a fresh officer review.
+                    st.session_state.pop("review_rows", None)
+                    for widget_key in list(st.session_state):
+                        if widget_key.startswith(("billed_code_source-", "matched_code_source-",
+                                                  "description_source-", "invoice_source-",
+                                                  "service_date_source-", "claimed_source-",
+                                                  "treatment_source-")):
+                            st.session_state.pop(widget_key, None)
+                    st.success(f"Read {len(images)} pages. Review the bills, codes and reconciliation below.")
             except Exception as e:
                 err_text = str(e)
                 if "API_KEY_INVALID" in err_text or "API key not valid" in err_text or "invalid x-api-key" in err_text.lower():
@@ -803,8 +845,8 @@ if provider in (P_CLAUDE, P_GEMINI) and run_ocr:
                     st.error(
                         f"**The model name `{model_name}` isn't available anymore** - {provider.split()[0]} "
                         "retires specific model versions on a rolling basis, sometimes with little notice.\n\n"
-                        + ("Please tell the administrator. They need to update the fixed `GEMINI_MODEL` setting "
-                           "in `app.py` to a currently available Google model."
+                        + ("Please tell the administrator. They need to update the fixed Google AI model setting "
+                           "in `app.py` to a currently available model."
                            if provider == P_GEMINI else
                            "Pick another model in the sidebar (e.g. `claude-sonnet-5-5`) or check "
                            "[docs.claude.com](https://docs.claude.com) for the current model list.")
@@ -815,6 +857,7 @@ if provider in (P_CLAUDE, P_GEMINI) and run_ocr:
                 st.info("You can still fill in the details manually below.")
                 st.session_state.extracted = {}
                 st.session_state.line_items = []
+                st.session_state.pop("extraction_key", None)
                 st.session_state.pop("review_rows", None)
 
 # ---------------------------------------------------------------------------
@@ -824,6 +867,15 @@ st.header("02 — Confirm claimant details")
 st.caption("If OCR could not read the name or employee ID, fill them in here manually - everything on this page is editable.")
 
 ex = st.session_state.extracted or {}
+source_audit = {"form_total": None, "invoice_total": None, "issues": []}
+if ex:
+    source_audit = reconcile(ex)
+    if source_audit["form_total"] is not None:
+        st.caption(f"Applicant form total: ₹{source_audit['form_total']:,.2f}"
+                   + (f" · Unique invoice totals: ₹{source_audit['invoice_total']:,.2f}"
+                      if source_audit["invoice_total"] is not None else ""))
+    for issue in source_audit["issues"]:
+        st.warning(issue)
 col1, col2, col3 = st.columns(3)
 with col1:
     name = st.text_input("Claimant name", value=ex.get("claimant_name") or "")
@@ -903,12 +955,16 @@ if "review_rows" not in st.session_state:
     st.session_state.review_rows = [
         {"id": f"source-{i}", "description": it.get("description", ""),
          "billed_code": it.get("code", "") or "", "matched_code": "",
-         "claimed_amount": it.get("claimed_amount", 0) or 0, "override": OVERRIDE_AUTO}
+         "claimed_amount": it.get("claimed_amount", 0) or 0, "override": OVERRIDE_AUTO,
+         "invoice_number": it.get("invoice_number", "") or "",
+         "service_date": it.get("service_date", "") or "",
+         "source_page": it.get("source_page")}
         for i, it in enumerate(items_raw)
     ] or [{"id": "new-0", "description": "", "billed_code": "", "matched_code": "",
             "claimed_amount": 0, "override": OVERRIDE_AUTO}]
 
 st.caption(f"Rate lookup: **{tier_label}**, **{nabh_status}** (change in the sidebar if needed)")
+st.caption(f"Rate sheet ID: `{rate_sheet_id}`. Keep this ID with the case record to identify the exact rate chart used.")
 st.write(
     "Search either code picker by code or description. Selecting a CGHS code fetches its official "
     "description and the rate for the chosen tier. You can add, edit or delete any review entry before preparing the draft."
@@ -934,6 +990,9 @@ for index, review_row in enumerate(st.session_state.review_rows):
     label = _txt(review_row.get("description")) or "New review item"
     amount_label = f"₹{_num(review_row.get('claimed_amount')):,.0f}"
     with st.expander(f"{index + 1:02d} · {label} · {amount_label}", expanded=(index == 0)):
+        if review_row.get("source_page"):
+            st.caption(f"Source page {review_row['source_page']} · "
+                       f"Invoice {review_row.get('invoice_number') or 'not identified'}")
         c1, c2 = st.columns(2)
         with c1:
             selected_billed = st.selectbox(
@@ -963,6 +1022,13 @@ for index, review_row in enumerate(st.session_state.review_rows):
         review_row["description"] = st.text_input(
             "Description (as billed)", value=review_row.get("description", ""), key=f"description_{row_id}",
         )
+        origin_a, origin_b = st.columns(2)
+        with origin_a:
+            review_row["invoice_number"] = st.text_input(
+                "Bill / receipt number", value=review_row.get("invoice_number", ""), key=f"invoice_{row_id}")
+        with origin_b:
+            review_row["service_date"] = st.text_input(
+                "Service date", value=review_row.get("service_date", ""), key=f"service_date_{row_id}")
         c3, c4, c5 = st.columns([1, 1, .6])
         with c3:
             review_row["claimed_amount"] = st.number_input(
@@ -991,7 +1057,7 @@ if st.button("+ Add new entry", key="add_review_entry"):
     st.session_state.review_rows.append({
         "id": f"new-{len(st.session_state.review_rows)}-{datetime.datetime.now().timestamp():.0f}",
         "description": "", "billed_code": "", "matched_code": "", "claimed_amount": 0,
-        "override": OVERRIDE_AUTO,
+        "override": OVERRIDE_AUTO, "invoice_number": "", "service_date": "", "source_page": None,
     })
     st.rerun()
 
@@ -1034,6 +1100,7 @@ sheet = pd.DataFrame([{
     'Sl.': i + 1,
     'Particulars': r['matched_description'],
     'CGHS code': r['code'] or '-',
+    'Bill / receipt': r.get('invoice_number') or '-',
     'Code source': r['match_source'],
     'Claimed (₹)': r['claimed_amount'],
     'CGHS rate (₹)': r['cghs_rate'],
@@ -1071,16 +1138,23 @@ st.caption(
     "code or description manually."
 )
 
-total_claimed = sum(r['claimed_amount'] for r in final_items)
+calculation_claimed = sum(r['claimed_amount'] for r in final_items)
+all_reviewed_claimed = sum(_num(r.get('claimed_amount')) for r in st.session_state.review_rows)
+total_claimed = all_reviewed_claimed
 total_admissible = sum(r['counted_amount'] for r in final_items if r['counted_amount'] is not None)
 unresolved = [r for r in final_items if r['counted_amount'] is None]
 summary = summarise(final_items)
 
 m1, m2, m3 = st.columns(3)
-m1.metric("Total claimed", f"₹{total_claimed:,.2f}")
+m1.metric("Claimed bill rows", f"₹{total_claimed:,.2f}")
 m2.metric("Total admissible (as per CGHS rates)", f"₹{total_admissible:,.2f}")
 diff = total_claimed - total_admissible
 m3.metric("Difference", f"₹{diff:,.2f}", delta=f"-₹{diff:,.2f}" if diff > 0 else None, delta_color="inverse")
+form_total = reconcile(ex)["form_total"] if ex else None
+if form_total is not None and abs(float(form_total) - all_reviewed_claimed) > 1:
+    st.error(f"Applicant form claims ₹{form_total:,.2f}; reviewed bill rows total ₹{all_reviewed_claimed:,.2f}. Check for missing, duplicate or unreadable bill items.")
+if fetch_mode == CODE_ONLY and calculation_claimed < total_claimed:
+    st.warning(f"Code only mode excludes ₹{total_claimed - calculation_claimed:,.2f} in uncoded bill rows from the calculation.")
 
 if summary['excluded']:
     st.info(
@@ -1209,8 +1283,15 @@ st.caption("The draft sanction uses the checked admissible total. Each matched l
 st.write(f"**Amount to be sanctioned: ₹{final_amount:,.0f}** ({rupees_in_words(final_amount)})")
 
 if unresolved or summary['review']:
-    st.caption("⚠️ Some rows above still need a decision (REVIEW / NO MATCH). You can generate the documents now, "
-               "but the amounts will change if you resolve them afterwards - generate again if so.")
+    st.caption("⚠️ Some rows still need a decision (REVIEW / NO MATCH). Confirm the draft review below; "
+               "generate again after any amount or code change.")
+needs_review = bool(source_audit["issues"] or unresolved or summary['review'] or inferred or
+                    (form_total is not None and abs(float(form_total) - all_reviewed_claimed) > 1) or
+                    (fetch_mode == CODE_ONLY and calculation_claimed < total_claimed))
+review_confirmed = True
+if needs_review:
+    review_confirmed = st.checkbox(
+        "I checked the source bills, missing or repeated items, inferred codes and totals before preparing drafts")
 
 
 def _remark(r):
@@ -1242,7 +1323,7 @@ def _order_remark():
     return f'partially admissible (Rs {total_claimed - total_admissible:,.0f}/- disallowed{why} - see calculation sheet)'
 
 
-if st.button("📄 Generate documents", type="primary", disabled=(not name or not emp_id)):
+if st.button("📄 Generate documents", type="primary", disabled=(not name or not emp_id or not review_confirmed)):
     case = {
         'memo_no': memo_no,
         'memo_date': memo_date,
@@ -1269,6 +1350,7 @@ if st.button("📄 Generate documents", type="primary", disabled=(not name or no
         'recommended': 'Yes',
         'office_profile': office_now,
         'fetch_mode': fetch_mode,
+        'rate_sheet_id': rate_sheet_id,
     }
     ns_items = [{
         'sl_no': i + 1,
@@ -1277,7 +1359,9 @@ if st.button("📄 Generate documents", type="primary", disabled=(not name or no
         'claimed': f"{float(r['claimed_amount']):.2f}",
         'admissible': f"{float(r['counted_amount']):.2f}" if r['counted_amount'] is not None else 'MANUAL REVIEW',
         'remark': _remark(r),
-        'source': r.get('match_source', ''),
+        'source': (f"{r.get('match_source', '')}; "
+                   f"{r.get('invoice_number') or 'no invoice ID'}; "
+                   f"page {r.get('source_page') or '-'}"),
     } for i, r in enumerate(final_items)]
 
     out_dir = os.path.join(tempfile.gettempdir(), 'cghs_out')

@@ -114,13 +114,35 @@ def best_fuzzy_match(query, descriptions, score_cutoff=62):
     return max(candidates, key=lambda candidate: candidate[1])
 
 
+def confident_description_match(query, descriptions):
+    """Use a unique, stable rate-master match; leave ambiguous descriptions blank."""
+    clean = normalise_description(query)
+    if len(clean) < 5 or clean in {"consultation", "investigation", "medicine", "medicines", "procedure", "test"}:
+        return None, 0
+    ranked = []
+    for code, description in descriptions.items():
+        candidate = normalise_description(description)
+        if candidate == clean:
+            score = 100
+        else:
+            score = max(fuzz.WRatio(clean, candidate), fuzz.token_set_ratio(clean, candidate))
+        ranked.append((score, code))
+    ranked.sort(key=lambda pair: (-pair[0], pair[1]))
+    if not ranked:
+        return None, 0
+    best, second = ranked[0], ranked[1] if len(ranked) > 1 else (0, "")
+    if best[0] >= 90 and best[0] - second[0] >= 7:
+        return best[1], best[0]
+    return None, best[0]
+
+
 def match_line_item(item, by_code, descriptions, tier_label="Tier I (X City)", accreditation="NABH"):
     """
     item: dict with optional 'code' and required 'description', 'claimed_amount'
     returns enriched dict with match info
     """
     code_raw = item.get('code', '')
-    code = extract_cghs_code(code_raw, valid_codes=by_code) or extract_cghs_code(item.get('description', ''), valid_codes=by_code)
+    code = extract_cghs_code(code_raw, valid_codes=by_code)
     matched_code = None
     match_method = None
     score = None
@@ -130,7 +152,7 @@ def match_line_item(item, by_code, descriptions, tier_label="Tier I (X City)", a
         match_method = 'exact_code'
         score = 100
     else:
-        fm_code, fm_score = best_fuzzy_match(item.get('description', ''), descriptions)
+        fm_code, fm_score = confident_description_match(item.get('description', ''), descriptions)
         if fm_code:
             matched_code = fm_code
             match_method = 'fuzzy_description'

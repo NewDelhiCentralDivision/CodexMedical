@@ -9,6 +9,7 @@ Medical Claims Studio is a refreshed Streamlit workspace for reviewing CGHS medi
 - Clearer visual hierarchy for decision points, while preserving editable rows, manual entry and review warnings.
 - A Three.js document-review scene with a CSS fallback, plus aligned amount metrics and improved data surfaces.
 - A calculation mode selector: Automatic fetching accepts strong description matches and marks inferred codes for officer review; Code only includes entries with verified codes.
+- Scanned case files are read in numbered page batches. AI extracts billed rows and their receipt numbers; a fixed audit compares invoice totals with the applicant form and marks missing or inconsistent amounts for review.
 - Five draft downloads: the existing division sanction memo and NS/Checklist, plus a standalone calculation checklist, Circle sanction order, and unit sanction memo based on the supplied examples.
 
 > **Decision support only.** The processing officer must review every match, rate and final amount before sanction.
@@ -40,6 +41,7 @@ before a case is sanctioned. Treat every output as a draft.
 | `bundles.py` | The billing rules: which CGHS codes are packages that already include other tests, and what must not be counted twice (see "How double counting is prevented") |
 | `letter_templates.py` | Generates five draft `.docx` outputs; the existing division documents use the editable office profile (`DEFAULT_OFFICE`) |
 | `review_logic.py` | Selects verified codes, limits inferred matches, and applies the lower of claim and CGHS cap |
+| `claim_audit.py` | Merges page batches, removes repeated scans of the same numbered bill line, and checks printed totals |
 | `tests/` | Automated checks for the billing rules and the whole app (run with `python -m pytest tests/ -q`) |
 | `num2words_inr.py` | Converts rupee figures to words (Indian lakh/crore numbering) |
 | `data/CGHS_Rates_All_Tiers.xlsx` | The full CGHS rate master, extracted from `CGHS_RATE_as_on_3_10_2025.pdf` - all 1,998 codes, with Tier I (X City) / Tier II (Y City) / Tier III (Z City) rates side by side, semi-private ward base rates |
@@ -88,7 +90,7 @@ On Streamlit Community Cloud, `packages.txt` installs poppler automatically: pus
 
 For each line item extracted from the claim:
 1. If a CGHS code was read directly off the document, it's matched exactly.
-2. In Automatic fetching mode, an uncoded billed description is matched against the CGHS master only when the similarity score is at least 85. The inferred code is labelled for officer review. Diagnosis alone does not create a bill row. In Code only mode, uncoded rows are omitted and the app warns how many were left out.
+2. In Automatic fetching mode, an uncoded billed description is matched against the CGHS master only when one candidate scores at least 90 and leads the next candidate by at least 7 points. The inferred code is labelled for officer review. Diagnosis alone does not create a bill row. In Code only mode, uncoded rows are omitted and the app warns how many were left out.
 3. Each row uses the lower of its claimed amount and CGHS rate, then the billing rules (next section) decide what actually counts. The **Calculation sheet** under the table shows the claimed amount, the CGHS cap, the amount **counted**, the code source, a result and a plain-English note:
    - **COUNTED** — payable (capped at the CGHS rate; a note says so when the bill was higher)
    - **INCLUDED IN PACKAGE** — already covered by a package that is also billed (e.g. Hb, TLC and Platelets inside a CBC); counted as ₹0
@@ -97,6 +99,12 @@ For each line item extracted from the claim:
    - **NO MATCH** — couldn't confidently match this row; needs your judgement
 4. **Every row is editable** in the app — if a match looks wrong, correct the CGHS code directly in the table. A row you type in by hand is matched automatically from its description or code. The **Treatment** column lets you overrule the rules for a single row: *Auto* (default), *Count* (pay it anyway) or *Exclude* (don't pay it).
 5. Name and Employee ID (and every other field) can always be typed in manually if OCR misses them or gets them wrong.
+
+### Repeatable scrutiny of scanned case files
+
+The AI reads a fixed set of five numbered pages per request with zero temperature. It extracts facts from bills and receipts, while Python performs the rate lookup, cap, duplicate checks, and totals. Within one session, reading the same files again with the same provider and model reuses the reviewed extraction instead of replacing officer edits. Different receipts for the same test remain separate and are flagged for review; a duplicated scan of the same numbered invoice line is removed. The app compares the applicant-form total, unique printed invoice totals, and extracted line amounts. A mismatch must be acknowledged before draft documents can be generated.
+
+AI reading can still vary across fresh sessions or model updates. The source page, invoice number, and each chosen code remain visible so an officer can confirm the result. A missing or ambiguous code remains unmatched rather than being invented.
 
 ## How double counting is prevented
 

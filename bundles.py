@@ -228,6 +228,15 @@ def apply_billing_rules(items, by_code):
         adm = it.get("admissible_amount")
         return bool(it.get("code")) and adm is not None and adm > 0
 
+    def same_bill(i, j):
+        """Different dated receipts are separate services, not package duplicates."""
+        a, b = out[i], out[j]
+        if a.get("invoice_number") and b.get("invoice_number"):
+            return a["invoice_number"] == b["invoice_number"]
+        if a.get("service_date") and b.get("service_date"):
+            return a["service_date"] == b["service_date"]
+        return True  # legacy/manual rows have no provenance; flag their ambiguity below
+
     # 1. Package inclusion --------------------------------------------------
     for i in range(n):
         code = out[i].get("code")
@@ -236,7 +245,7 @@ def apply_billing_rules(items, by_code):
         best = None
         for j in range(n):
             pkg = out[j].get("code")
-            if j == i or not pkg or pkg == code or not is_active(j):
+            if j == i or not pkg or pkg == code or not is_active(j) or not same_bill(i, j):
                 continue
             covers = COVERS.get(pkg, {})
             if code in covers:
@@ -268,7 +277,11 @@ def apply_billing_rules(items, by_code):
         if out[i]["rule_status"] in (INCLUDED,):
             continue  # already explained
         cls = (by_code.get(code, {}).get("classification") or "").lower()
-        if any(k in cls for k in _REPEAT_EXCLUDE_KEYWORDS):
+        if not same_bill(first_seen[code], i):
+            out[i]["rule_status"] = REVIEW_REPEAT
+            out[i]["rule_note"] = (f"{code} appears on a separate dated receipt/invoice; "
+                                   "confirm it was a separate service. Both remain counted for review.")
+        elif any(k in cls for k in _REPEAT_EXCLUDE_KEYWORDS):
             out[i]["rule_status"] = REPEAT
             out[i]["rule_note"] = (f"{code} is billed more than once - a repeated test is counted once. "
                                    f"Set to Count if it was genuinely done again (e.g. different date).")

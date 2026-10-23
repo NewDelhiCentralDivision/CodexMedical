@@ -1,5 +1,5 @@
 """Officer review rules for choosing verified CGHS codes and payable amounts."""
-from matcher import extract_cghs_code, get_rate, match_line_item
+from matcher import extract_cghs_code, get_rate, confident_description_match
 
 AUTOMATIC = "Automatic fetching mode"
 CODE_ONLY = "Code only mode"
@@ -15,20 +15,17 @@ def resolve_item(row, by_code, descriptions, tier_label, accreditation, mode=AUT
     raw_code = str(row.get("billed_code") or "").strip()
     selected = str(row.get("matched_code") or "").strip()
     claimed = max(0, float(row.get("claimed_amount") or 0))
-    billed = extract_cghs_code(raw_code, by_code) or extract_cghs_code(description, by_code)
+    billed = extract_cghs_code(raw_code, by_code)
     code = selected if selected in by_code else billed
     source = "Officer selected" if selected in by_code else "Printed code" if billed else ""
     score = 100 if code else None
     if not code and mode == CODE_ONLY:
         return None
     if not code and description:
-        match = match_line_item({"description": description, "code": "", "claimed_amount": claimed},
-                                by_code, descriptions, tier_label, accreditation)
-        # A low fuzzy score can attach an unrelated code to a bill. Leave it
-        # unmatched for officer review instead of silently putting it on a sheet.
-        if match.get("match_score", 0) >= 85:
-            code = match["matched_code"]
-            score = match["match_score"]
+        inferred_code, inferred_score = confident_description_match(description, descriptions)
+        if inferred_code:
+            code = inferred_code
+            score = inferred_score
             source = "Description inferred — review"
     rate = get_rate(by_code[code], tier_label, accreditation) if code else None
     return {
@@ -38,4 +35,7 @@ def resolve_item(row, by_code, descriptions, tier_label, accreditation, mode=AUT
         "matched_description": by_code[code]["description"] if code else description,
         "match_source": source or "No verified code", "match_score": score,
         "override": row.get("override", "Auto"),
+        "invoice_number": str(row.get("invoice_number") or "").strip().upper(),
+        "service_date": str(row.get("service_date") or "").strip(),
+        "source_page": row.get("source_page"),
     }
