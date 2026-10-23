@@ -8,6 +8,8 @@ Medical Claims Studio is a refreshed Streamlit workspace for reviewing CGHS medi
 - A pastel casework interface with responsive controls, clear focus states, gentle motion and reduced-motion support.
 - Clearer visual hierarchy for decision points, while preserving editable rows, manual entry and review warnings.
 - A Three.js document-review scene with a CSS fallback, plus aligned amount metrics and improved data surfaces.
+- A calculation mode selector: Automatic fetching accepts strong description matches and marks inferred codes for officer review; Code only includes entries with verified codes.
+- Five draft downloads: the existing division sanction memo and NS/Checklist, plus a standalone calculation checklist, Circle sanction order, and unit sanction memo based on the supplied examples.
 
 > **Decision support only.** The processing officer must review every match, rate and final amount before sanction.
 
@@ -36,7 +38,8 @@ before a case is sanctioned. Treat every output as a draft.
 | `app.py` | The Streamlit app (UI, OCR call, matching, document generation) |
 | `matcher.py` | Matches claimed line items to CGHS codes (exact code match first, fuzzy text match as fallback) |
 | `bundles.py` | The billing rules: which CGHS codes are packages that already include other tests, and what must not be counted twice (see "How double counting is prevented") |
-| `letter_templates.py` | Generates the Sanction Memo and NS/Checklist `.docx` files from your existing wording; the office details come from an editable profile (`DEFAULT_OFFICE`) |
+| `letter_templates.py` | Generates five draft `.docx` outputs; the existing division documents use the editable office profile (`DEFAULT_OFFICE`) |
+| `review_logic.py` | Selects verified codes, limits inferred matches, and applies the lower of claim and CGHS cap |
 | `tests/` | Automated checks for the billing rules and the whole app (run with `python -m pytest tests/ -q`) |
 | `num2words_inr.py` | Converts rupee figures to words (Indian lakh/crore numbering) |
 | `data/CGHS_Rates_All_Tiers.xlsx` | The full CGHS rate master, extracted from `CGHS_RATE_as_on_3_10_2025.pdf` - all 1,998 codes, with Tier I (X City) / Tier II (Y City) / Tier III (Z City) rates side by side, semi-private ward base rates |
@@ -46,18 +49,18 @@ before a case is sanctioned. Treat every output as a draft.
 
 ### Using the tool (officers)
 
-Officers never see or type an API key. In the sidebar they pick **how to read the documents**; if the key has been set up (below), the first choice is **Auto-read with AI (Gemini)** and the only thing to select is the **model** from the dropdown:
+Officers never see or type an API key. In the sidebar they pick **how to read the documents**; if the key has been set up, the first choice is **Auto-read with AI (Google)**:
 
 | Reading mode | Needs the key? | What it does |
 |---|---|---|
-| **Auto-read with AI (Gemini)** | Built in (set once by the administrator) | Reads the documents and auto-fills every field, including line items |
+| **Auto-read with AI (Google)** | Built in (set once by the administrator) | Reads the documents and auto-fills every field, including line items |
 | **Auto-read with AI (Claude)** | Only shown if an `ANTHROPIC_API_KEY` is also set up | Same, with Claude |
 | **Offline OCR - raw text only** | No | Runs Tesseract on your own machine and shows the raw text to read beside the scan - it does **not** auto-fill amounts (it can misread a digit, e.g. ₹1,000 as ₹600) |
 | **Type everything manually** | No | Skip upload and type the details in; the rate check, flagging and letters work exactly the same |
 
 If no key has been set up, the AI options simply do not appear and the tool still works in the other two modes.
 
-**Models.** Gemini choices, checked against Google's model pages on 15 Oct 2026: `gemini-3.8-flash` (default, fast), `gemini-4-argon` (newest and most capable), `gemini-3.6-flash`, `gemini-3.5-flash-lite` (cheapest), `gemini-3.1-pro-preview` (preview) and `gemini-flash-latest` (rolling alias). The dropdown also has an *Other* entry for any newer model name. Google retires models regularly - the current list is at [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models).
+**Models.** The Google AI provider uses the model configured in `app.py`. The administrator should confirm availability in the provider's documentation before deployment.
 
 ### One-time key setup (administrator)
 
@@ -85,8 +88,8 @@ On Streamlit Community Cloud, `packages.txt` installs poppler automatically: pus
 
 For each line item extracted from the claim:
 1. If a CGHS code was read directly off the document, it's matched exactly.
-2. Otherwise, the test/treatment description is fuzzy-matched against all 1,998 CGHS descriptions, and the closest one above a similarity threshold is used.
-3. Each row is capped at its CGHS rate, then the billing rules (next section) decide what actually counts. The **Calculation sheet** under the table shows, for every row: the claimed amount, the CGHS rate, the amount **counted**, a result and a plain-English note:
+2. In Automatic fetching mode, an uncoded billed description is matched against the CGHS master only when the similarity score is at least 85. The inferred code is labelled for officer review. Diagnosis alone does not create a bill row. In Code only mode, uncoded rows are omitted and the app warns how many were left out.
+3. Each row uses the lower of its claimed amount and CGHS rate, then the billing rules (next section) decide what actually counts. The **Calculation sheet** under the table shows the claimed amount, the CGHS cap, the amount **counted**, the code source, a result and a plain-English note:
    - **COUNTED** — payable (capped at the CGHS rate; a note says so when the bill was higher)
    - **INCLUDED IN PACKAGE** — already covered by a package that is also billed (e.g. Hb, TLC and Platelets inside a CBC); counted as ₹0
    - **REPEAT - COUNTED ONCE** — the same diagnostic code billed twice; counted once

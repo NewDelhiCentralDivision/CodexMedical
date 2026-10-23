@@ -21,12 +21,15 @@ import pandas as pd
 import streamlit.components.v1 as components
 
 from matcher import match_line_item, get_rate, extract_cghs_code, TIER_KEYS
-from letter_templates import build_sanction_memo, build_ns_checklist, DEFAULT_OFFICE
+from letter_templates import (build_sanction_memo, build_ns_checklist,
+                              build_circle_sanction_order, build_unit_sanction_memo,
+                              build_calculation_checklist, DEFAULT_OFFICE)
 from bundles import (
     apply_billing_rules, summarise, validate_rules, OVERRIDE_CHOICES, OVERRIDE_AUTO,
     COUNTED, INCLUDED, REPEAT, FORCED_EXCLUDE, UNMATCHED,
 )
 from num2words_inr import rupees_in_words
+from review_logic import resolve_item, AUTOMATIC, CODE_ONLY
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 MASTER_JSON = os.path.join(DATA_DIR, 'cghs_all_tiers.json')
@@ -65,7 +68,7 @@ p,.stCaption { color:var(--muted)!important; }
 [data-testid="stMetric"]:hover { transform:translateY(-2px); border-color:#b9cec1; box-shadow:0 18px 42px rgba(42,65,55,.11); }
 [data-testid="stMetricLabel"] { font-size:.74rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)!important; }
 [data-testid="stMetricValue"] { color:var(--sage-dark)!important; font-family:'DM Mono',monospace; font-size:1.55rem!important; }
-.stButton > button,.stDownloadButton > button { border-radius:11px; font-family:'DM Sans',sans-serif; font-weight:700; min-height:2.85rem; transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,background .18s ease,border-color .18s ease; }
+.stButton > button,.stDownloadButton > button { border-radius:13px; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700; min-height:3.5rem; padding:.7rem 1.15rem; line-height:1.35; white-space:normal; transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,background .18s ease,border-color .18s ease; }
 .stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"] { background:var(--sage-deep); border-color:var(--sage-deep); color:#f8fbf8; box-shadow:0 7px 16px rgba(65,94,83,.18); }
 .stButton > button[kind="primary"]:hover,.stDownloadButton > button[kind="primary"]:hover { background:var(--sage-dark); border-color:var(--sage-dark); box-shadow:0 12px 24px rgba(65,94,83,.23); }
 .stButton > button:hover,.stDownloadButton > button:hover { transform:translateY(-2px); border-color:#abc2b4; box-shadow:0 8px 20px rgba(42,65,55,.12); }
@@ -74,7 +77,7 @@ button:focus-visible,[tabindex="0"]:focus-visible { outline:3px solid rgba(85,11
 [data-baseweb="input"]:focus-within,[data-baseweb="textarea"]:focus-within,[data-baseweb="select"]:focus-within { border-color:var(--sage-deep)!important; box-shadow:0 0 0 3px rgba(85,118,107,.15)!important; }
 [data-baseweb="input"] input,[data-baseweb="textarea"] textarea { min-height:2.7rem; }
 [data-testid="stDialog"] [role="dialog"] { border-radius:20px; border:1px solid var(--line); box-shadow:0 24px 70px rgba(36,53,45,.2); }
-[data-testid="stDialog"] button { min-height:2.75rem; }
+[data-testid="stDialog"] button { min-height:3.5rem; font-size:1rem; }
 [data-testid="stFileUploader"] { background:#f9fbf9; border:1px dashed #aec5b7; border-radius:17px; padding:.8rem; transition:background .2s ease,border-color .2s ease,transform .2s ease; }
 [data-testid="stFileUploader"]:hover { background:#fbfcfa; border-color:var(--sage-deep); transform:translateY(-1px); }
 [data-testid="stDataFrame"],[data-testid="stDataEditor"] { border:1px solid var(--line); border-radius:15px; overflow:hidden; background:#fbfcfa; box-shadow:0 8px 24px rgba(42,65,55,.045); }
@@ -148,12 +151,12 @@ def _clean_key(k):
 GEMINI_KEY = _clean_key(_get_secret("GEMINI_API_KEY") or _get_secret("GOOGLE_API_KEY"))
 CLAUDE_KEY = _clean_key(_get_secret("ANTHROPIC_API_KEY"))
 
-P_GEMINI = "Google (Gemini)"
+P_GEMINI = "Google AI"
 P_CLAUDE = "Anthropic (Claude)"
 P_OCR = "Local OCR (offline, free - Tesseract)"
 P_MANUAL = "Manual entry only - no OCR, no key needed"
 PROVIDER_LABELS = {
-    P_GEMINI: "🤖 Auto-read with AI (Gemini)",
+    P_GEMINI: "🤖 Auto-read with AI (Google)",
     P_CLAUDE: "🤖 Auto-read with AI (Claude)",
     P_OCR: "📝 Offline OCR - raw text only",
     P_MANUAL: "⌨️ Type everything manually",
@@ -216,7 +219,7 @@ else:
     api_key = GEMINI_KEY
     model_name = GEMINI_MODEL
     st.sidebar.caption(
-        "Uses Gemini 3.5 Flash-Lite for fast, cost-efficient document extraction. "
+        "Uses a fast AI model for document extraction. "
         "Review all names, codes and amounts before sanction."
     )
 
@@ -866,6 +869,13 @@ diagnosis = st.text_area(
 # Step 3: Line-item matching against CGHS rates
 # ---------------------------------------------------------------------------
 st.header("03 — Scrutinize CGHS rates")
+fetch_mode = st.selectbox(
+    "Calculation sheet mode", [AUTOMATIC, CODE_ONLY],
+    help="Automatic matches billed descriptions against the CGHS master when no code is printed. "
+         "Code only includes entries with a verified printed code or a code selected by the officer. "
+         "A diagnosis alone never creates a bill row.",
+)
+st.caption("Automatic mode marks inferred codes for review. Code only mode leaves uncoded entries out of the calculation; confirm them against the bill before sanction.")
 
 
 def _num(x):
@@ -916,13 +926,8 @@ def _code_from_picker(value):
     return label_to_code.get(value, "")
 
 def _use_selected_code(row, field, selected_code):
-    """Apply a searchable CGHS-code selection without overwriting billed amount."""
+    """Apply a verified code without changing the description printed on the bill."""
     row[field] = selected_code
-    if selected_code:
-        row["description"] = BY_CODE[selected_code]["description"]
-        # The description input is created later in this run, so keep its
-        # widget value in step with a code selection as well.
-        st.session_state[f"description_{row['id']}"] = row["description"]
 
 for index, review_row in enumerate(st.session_state.review_rows):
     row_id = review_row["id"]
@@ -998,22 +1003,19 @@ for row in st.session_state.review_rows:
     billed_code = _txt(row.get("billed_code"))
     claimed = _num(row.get("claimed_amount"))
     code = _txt(row.get("matched_code"))
-    if not code and (desc_billed or billed_code):
-        auto = match_line_item({"description": desc_billed, "code": billed_code, "claimed_amount": claimed},
-                               BY_CODE, DESCRIPTIONS, tier_label=tier_label, accreditation=nabh_status)
-        code = auto.get("matched_code")
     if not (desc_billed or billed_code or code or claimed):
         continue
-    rate = get_rate(BY_CODE[code], tier_label, nabh_status) if code else None
-    rows_final.append({
-        "description": desc_billed, "billed_code": billed_code, "code": code,
-        "claimed_amount": claimed, "cghs_rate": rate,
-        "admissible_amount": min(claimed, rate) if rate is not None else None,
-        "matched_description": BY_CODE[code]["description"] if code else desc_billed,
-        "override": _txt(row.get("override")) or OVERRIDE_AUTO,
-    })
+    resolved = resolve_item(row, BY_CODE, DESCRIPTIONS, tier_label, nabh_status, fetch_mode)
+    if resolved is not None:
+        rows_final.append(resolved)
 
 final_items = apply_billing_rules(rows_final, BY_CODE)
+if fetch_mode == CODE_ONLY:
+    omitted = sum(1 for r in st.session_state.review_rows
+                  if (_txt(r.get('description')) or _txt(r.get('billed_code')) or _num(r.get('claimed_amount'))))
+    omitted -= len(rows_final)
+    if omitted:
+        st.warning(f"{omitted} uncoded billed entr{'y' if omitted == 1 else 'ies'} omitted in Code only mode. Check the bill and select a verified CGHS code before sanctioning.")
 
 
 def _result_note(r):
@@ -1021,6 +1023,10 @@ def _result_note(r):
     if r['cghs_rate'] is not None and r['claimed_amount'] > r['cghs_rate']:
         capped = f"Billed ₹{r['claimed_amount']:,.2f} is above the CGHS rate ₹{r['cghs_rate']:,.2f} - restricted to the rate."
         note = f"{note} {capped}".strip()
+    elif r['cghs_rate'] is not None and r['claimed_amount'] < r['cghs_rate']:
+        note = f"{note} Claimed amount is below the CGHS cap; the claim is considered.".strip()
+    if r.get('match_source') == 'Description inferred — review':
+        note = f"{note} Code inferred from billed description; confirm against the documents.".strip()
     return note
 
 
@@ -1028,6 +1034,7 @@ sheet = pd.DataFrame([{
     'Sl.': i + 1,
     'Particulars': r['matched_description'],
     'CGHS code': r['code'] or '-',
+    'Code source': r['match_source'],
     'Claimed (₹)': r['claimed_amount'],
     'CGHS rate (₹)': r['cghs_rate'],
     'Counted (₹)': r['counted_amount'],
@@ -1089,6 +1096,9 @@ if summary['review']:
 if unresolved:
     st.warning(f"{len(unresolved)} row(s) have no matched CGHS rate and are excluded from the admissible total above. "
                "Resolve these before sanctioning.")
+inferred = [r for r in final_items if r.get('match_source') == 'Description inferred — review']
+if inferred:
+    st.warning(f"{len(inferred)} code(s) were inferred from billed descriptions. Confirm each against the source documents and select the code explicitly before approval.")
 
 st.markdown("---")
 
@@ -1193,9 +1203,8 @@ with col_c:
              "'Calculation sheet is placed at Sl. No.' column in the summary table."
     )
 
-use_admissible = st.checkbox("Sanction the CGHS-checked admissible amount (recommended)", value=True,
-                              help="Uncheck only if you intend to sanction the full claimed amount regardless of the rate check above.")
-final_amount = total_admissible if use_admissible else total_claimed
+final_amount = total_admissible
+st.caption("The draft sanction uses the checked admissible total. Each matched line is limited to the lower of its claimed amount and CGHS rate.")
 
 st.write(f"**Amount to be sanctioned: ₹{final_amount:,.0f}** ({rupees_in_words(final_amount)})")
 
@@ -1214,6 +1223,8 @@ def _remark(r):
         return "Not admitted"
     if r['cghs_rate'] is not None and r['claimed_amount'] > r['cghs_rate']:
         return f"Restricted to CGHS rate Rs {r['cghs_rate']}/-"
+    if r.get('match_source') == 'Description inferred — review':
+        return 'Code inferred from billed description; officer review required'
     return ""
 
 
@@ -1257,6 +1268,7 @@ if st.button("📄 Generate documents", type="primary", disabled=(not name or no
         'order_remark': _order_remark(),
         'recommended': 'Yes',
         'office_profile': office_now,
+        'fetch_mode': fetch_mode,
     }
     ns_items = [{
         'sl_no': i + 1,
@@ -1265,19 +1277,30 @@ if st.button("📄 Generate documents", type="primary", disabled=(not name or no
         'claimed': f"{float(r['claimed_amount']):.2f}",
         'admissible': f"{float(r['counted_amount']):.2f}" if r['counted_amount'] is not None else 'MANUAL REVIEW',
         'remark': _remark(r),
+        'source': r.get('match_source', ''),
     } for i, r in enumerate(final_items)]
 
     out_dir = os.path.join(tempfile.gettempdir(), 'cghs_out')
     os.makedirs(out_dir, exist_ok=True)
     sanction_path = os.path.join(out_dir, 'Sanction_Memo.docx')
     ns_path = os.path.join(out_dir, 'NS_Checklist.docx')
+    checklist_path = os.path.join(out_dir, 'Calculation_Checklist.docx')
+    circle_path = os.path.join(out_dir, 'Circle_Sanction_Order.docx')
+    unit_path = os.path.join(out_dir, 'Unit_Sanction_Memo.docx')
     build_sanction_memo(case, sanction_path)
     build_ns_checklist(case, ns_items, ns_path)
+    build_calculation_checklist(case, ns_items, checklist_path)
+    build_circle_sanction_order(case, circle_path)
+    build_unit_sanction_memo(case, unit_path)
 
     # Keep the finished files in the session so both download buttons stay on screen
     # (clicking one download button reruns the page, which would otherwise make the other vanish).
-    with open(sanction_path, 'rb') as f1, open(ns_path, 'rb') as f2:
-        st.session_state.generated_docs = {'memo': f1.read(), 'ns': f2.read(), 'emp_id': emp_id, 'name': name}
+    st.session_state.generated_docs = {
+        'memo': open(sanction_path, 'rb').read(), 'ns': open(ns_path, 'rb').read(),
+        'checklist': open(checklist_path, 'rb').read(),
+        'circle': open(circle_path, 'rb').read(), 'unit': open(unit_path, 'rb').read(),
+        'emp_id': emp_id, 'name': name,
+    }
 
 docs = st.session_state.get('generated_docs')
 if docs:
@@ -1289,3 +1312,10 @@ if docs:
         st.download_button("⬇️ Download Sanction Memo (.docx)", docs['memo'], file_name=f"Sanction_Memo_{safe_id}.docx")
     with dl2:
         st.download_button("⬇️ Download NS/Checklist (.docx)", docs['ns'], file_name=f"NS_Checklist_{safe_id}.docx")
+    dl3, dl4, dl5 = st.columns(3)
+    with dl3:
+        st.download_button("⬇️ Calculation checklist", docs['checklist'], file_name=f"Calculation_Checklist_{safe_id}.docx")
+    with dl4:
+        st.download_button("⬇️ Circle sanction order", docs['circle'], file_name=f"Circle_Sanction_Order_{safe_id}.docx")
+    with dl5:
+        st.download_button("⬇️ Unit sanction memo", docs['unit'], file_name=f"Unit_Sanction_Memo_{safe_id}.docx")

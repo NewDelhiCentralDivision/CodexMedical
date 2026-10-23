@@ -65,7 +65,7 @@ def test_gemini_model_is_fixed_for_predictable_ocr_cost(monkeypatch):
 def test_diagnosis_is_restricted_to_the_applicant_form():
     src = open(APP).read()
     assert '"diagnosis_source": string or null' in src
-    assert "Extract `diagnosis` only from the diagnosis field" in src
+    assert "Extract\n`diagnosis` only from the diagnosis field" in src
     assert "Do NOT\ncopy a diagnosis from a discharge summary" in src
     assert "Applicant-form diagnosis" in src
 
@@ -82,7 +82,7 @@ def test_rate_review_has_searchable_code_pickers_and_entry_actions():
 def test_embedded_key_is_never_asked_for(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key-123")
     at = _app()
-    assert at.sidebar.radio[0].value == "Google (Gemini)"      # AI mode is the default when a key is set up
+    assert at.sidebar.radio[0].value == "Google AI"      # AI mode is the default when a key is set up
     assert not [t for t in at.sidebar.text_input if "key" in (t.label or "").lower()]
     assert not at.exception
 
@@ -91,7 +91,7 @@ def test_ai_option_hidden_when_no_key_configured(monkeypatch):
     for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     at = _app()
-    assert "Google (Gemini)" not in at.sidebar.radio[0].options
+    assert "Google AI" not in at.sidebar.radio[0].options
     assert not at.exception
 
 

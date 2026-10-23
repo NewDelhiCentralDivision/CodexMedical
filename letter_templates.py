@@ -14,6 +14,7 @@ from docx import Document
 from docx.shared import Pt, Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from num2words_inr import rupees_in_words, number_to_words_inr
@@ -166,6 +167,101 @@ def build_sanction_memo(case, out_path):
     for line in copy_list:
         _add_para(doc, line, size=11, space_after=2)
 
+    doc.save(out_path)
+
+
+def _circle_header(doc, case):
+    for line in ("Government of India", "Ministry of Communication", "DEPARTMENT OF POSTS",
+                 "OFFICE OF THE CHIEF POSTMASTER GENERAL", "DELHI CIRCLE, NEW DELHI-110001",
+                 "(PC SECTION)"):
+        _add_para(doc, line, size=10.5, bold=line.isupper(), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
+    _add_para(doc, f"File No. {case.get('circle_file_no') or case['memo_no']}", space_after=2)
+    _add_para(doc, f"Dated: {case['memo_date']}", space_after=12)
+
+
+def build_circle_sanction_order(case, out_path):
+    """Draft in the attached Circle sanction order format; no sample case facts reused."""
+    doc = Document()
+    _circle_header(doc, case)
+    _add_para(doc, "Sanction Order", size=13, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=14)
+    person = _name_designation_office(case)
+    words = number_to_words_inr(case['amount']) + ' Only'
+    _add_para(doc, f"Sanction of the Competent Authority is hereby conveyed for payment of medical "
+              f"reimbursement amounting to Rs. {case['amount']:,.2f}/- (Rupees {words}) to {person}, "
+              f"Emp ID {case['emp_id']}, for treatment of {case.get('patient_relation','self')} "
+              f"at {case['hospital']}.", space_after=12)
+    _add_para(doc, f"The expenditure shall be met from the current financial year allocation under "
+              f"{resolve_office(case)['hoa']}, subject to availability of funds.", space_after=22)
+    _add_para(doc, case.get('circle_signatory') or 'Assistant Director (PC)', align=WD_ALIGN_PARAGRAPH.RIGHT, space_after=18)
+    _add_para(doc, "Copy forwarded for information and necessary action to:", bold=True)
+    _add_para(doc, f"1. Bill Clerk, {resolve_office(case)['division']}, for necessary action.")
+    _add_para(doc, f"2. {person}, for information.")
+    _add_para(doc, "3. Office copy.")
+    doc.save(out_path)
+
+
+def build_unit_sanction_memo(case, out_path):
+    """Draft in the attached unit sanction memo format."""
+    doc = Document()
+    _circle_header(doc, case)
+    _add_para(doc, "Sanction Memo", size=13, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=14)
+    person = _name_designation_office(case)
+    words = number_to_words_inr(case['amount']) + ' Only'
+    _add_para(doc, f"Sanction of the Competent Authority is hereby conveyed for payment of medical "
+              f"reimbursement amounting to Rs. {case['amount']:,.2f}/- (Rupees {words}) to {person}, "
+              f"for treatment of {case.get('patient_relation','self')} at {case['hospital']}.", space_after=12)
+    _add_para(doc, f"The expenditure will be met from the current financial year allocation under "
+              f"{resolve_office(case)['hoa']}, subject to availability of funds.")
+    _add_para(doc, "This issues with the approval of the Competent Authority.", space_after=22)
+    _add_para(doc, case.get('circle_signatory') or 'Assistant Director (PC)', align=WD_ALIGN_PARAGRAPH.RIGHT, space_after=18)
+    _add_para(doc, "Copy to:", bold=True)
+    _add_para(doc, f"The {resolve_office(case)['sanctioning_authority']}, "
+              f"{resolve_office(case)['division']}, for arranging payment to the claimant "
+              "and communicating the payment date to this office.")
+    _add_para(doc, "The division should check that the same claim has not been reimbursed "
+              "from another source and that no duplicate payment is made.")
+    _add_para(doc, "Office copy.")
+    doc.save(out_path)
+
+
+def build_calculation_checklist(case, items, out_path):
+    """Standalone item-wise checklist modeled on the attached sample table."""
+    doc = Document()
+    sec = doc.sections[0]
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = sec.page_height, sec.page_width
+    _add_para(doc, "Medical Claim Calculation Checklist", size=14, bold=True,
+              align=WD_ALIGN_PARAGRAPH.CENTER, space_after=12)
+    _add_para(doc, f"Claimant: {case['name']}  |  Employee ID: {case['emp_id']}  |  "
+              f"Reference: {case['memo_no']}", space_after=4)
+    _add_para(doc, f"CGHS tier: {case.get('tier_label','-')}  |  "
+              f"Accreditation: {case.get('nabh_status','-')}  |  "
+              f"Mode: {case.get('fetch_mode','-')}", space_after=10)
+    table = doc.add_table(rows=1, cols=7)
+    table.style = 'Table Grid'
+    table.autofit = False
+    widths = [Cm(1.4), Cm(7.2), Cm(2.3), Cm(3.5), Cm(2.6), Cm(2.8), Cm(5.1)]
+    headings = ['Sl. No.', 'Details', 'CGHS code', 'Code source', 'Claimed amount',
+                'Admissible amount', 'Remark']
+    for c, heading in zip(table.rows[0].cells, headings):
+        c.text = heading
+        for run in c.paragraphs[0].runs: run.bold = True
+    for c, width in zip(table.rows[0].cells, widths): c.width = width
+    for i, item in enumerate(items, 1):
+        row = table.add_row().cells
+        values = [str(i), item.get('particulars',''), item.get('code') or '-',
+                  item.get('source',''), str(item.get('claimed','')),
+                  str(item.get('admissible','')), item.get('remark','')]
+        for c, value in zip(row, values):
+            c.text = value
+            for p in c.paragraphs:
+                for run in p.runs: run.font.size = Pt(9)
+        for c, width in zip(row, widths): c.width = width
+    _add_para(doc, f"Total claimed: Rs. {case.get('total_claimed',0):,.2f}  |  "
+              f"Total admissible: Rs. {case.get('total_admissible',0):,.2f}",
+              size=11, bold=True, space_after=10)
+    _add_para(doc, "Prepared for officer scrutiny. Confirm inferred codes, source bills, "
+              "duplicate checks, and sanction amount before approval.", size=9)
     doc.save(out_path)
 
 
