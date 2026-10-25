@@ -88,3 +88,25 @@ def test_diagnosis_alone_does_not_create_a_payable_procedure():
     row = resolve_item({"description": "", "claimed_amount": 100}, RATES, DESCRIPTIONS,
                        TIER, "NABH", NO_CODE, diagnosis="anaemia")
     assert row["code"] is None and row["admissible_amount"] is None
+
+
+def test_consultant_uses_documented_indoor_setting_but_generic_charges_abstain():
+    rates = {**RATES,
+             "CN001": {**RATES["LB012"], "code": "CN001", "description": "Consultation OPD"},
+             "CN002": {**RATES["LB012"], "code": "CN002", "description": "Consultation for Inpatients"}}
+    descriptions = {code: record["description"] for code, record in rates.items()}
+    consultant = {"description": "Consultant", "claimed_amount": 500}
+    without_context = resolve_item(consultant, rates, descriptions, TIER, "NABH", NO_CODE)
+    assert without_context["code"] is None
+    indoor = resolve_item(consultant, rates, descriptions, TIER, "NABH", NO_CODE,
+                          treatment_type="Indoor Treatment")
+    assert indoor["code"] == "CN002"
+    assert indoor["match_source"] == "Description-based suggested match — review"
+    for label in ("Medicine", "Injection IM IV", "IV Fluid", "Emergency Management",
+                  "B.P. Checkup", "Bed/3"):
+        item = resolve_item({"description": label, "claimed_amount": 100}, rates,
+                            descriptions, TIER, "NABH", NO_CODE,
+                            treatment_type="Indoor Treatment")
+        assert item["code"] is None, label
+        assert description_candidates(label, descriptions,
+                                      treatment_type="Indoor Treatment") == []

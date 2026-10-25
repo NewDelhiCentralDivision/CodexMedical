@@ -114,9 +114,10 @@ def best_fuzzy_match(query, descriptions, score_cutoff=62):
     return max(candidates, key=lambda candidate: candidate[1])
 
 
-def confident_description_match(query, descriptions):
+def confident_description_match(query, descriptions, context="", treatment_type=""):
     """Use a unique, stable rate-master match; leave ambiguous descriptions blank."""
-    ranked = description_candidates(query, descriptions, limit=2)
+    ranked = description_candidates(query, descriptions, limit=2,
+                                    context=context, treatment_type=treatment_type)
     if not ranked:
         return None, 0
     best, second = ranked[0], ranked[1] if len(ranked) > 1 else (None, None, 0)
@@ -125,19 +126,50 @@ def confident_description_match(query, descriptions):
     return None, best[2]
 
 
-def description_candidates(query, descriptions, limit=3, context=""):
+def description_candidates(query, descriptions, limit=3, context="", treatment_type=""):
     """Stable ranked suggestions; never assign a code from a generic label alone.
 
     Each result is (code, official description, score). Callers decide whether
     to accept a unique high-confidence match or ask the officer to choose.
     """
     clean = normalise_description(query)
-    if len(clean) < 5 or clean in {"consultation", "investigation", "medicine", "medicines", "procedure", "test"}:
+    if len(clean) < 5:
         return []
+    # A bill's generic charge cannot safely be mapped to a specific procedure.
+    generic = {"investigation", "medicine", "medicines", "procedure", "test",
+               "injection", "injection im iv", "iv fluid", "emergency management",
+               "bp checkup", "b p checkup", "bed", "bed 3"}
+    if re.sub(r"[^a-z0-9]+", " ", clean).strip() in generic:
+        return []
+    if clean in {"consultant", "consultant fee", "consultation",
+                 "consultation fee", "consultation charges", "doctor consultation"}:
+        setting = normalise_description(treatment_type)
+        indoor = any(word in setting.split() for word in ("indoor", "inpatient", "inpatients"))
+        opd = "opd" in setting.split() or "outpatient" in setting.split()
+        ranked = []
+        for code, description in descriptions.items():
+            official = normalise_description(description)
+            if "consultation" not in official.split():
+                continue
+            inpatient_rate = "inpatient" in official or "indoor" in official
+            standard_opd = "opd" in official.split() and "super speciality" not in official
+            score = (100 if (indoor and inpatient_rate) or (opd and standard_opd)
+                     else 84 if indoor or opd else 88)
+            ranked.append((code, description, score))
+        ranked.sort(key=lambda pair: (-pair[2], pair[0]))
+        return ranked[:limit]
     ranked = []
     context_terms = {word for word in normalise_description(context).split() if len(word) >= 5}
+    query_terms = set(re.findall(r"[a-z0-9]+", clean))
     for code, description in descriptions.items():
         candidate = normalise_description(description)
+        shared = query_terms.intersection(re.findall(r"[a-z0-9]+", candidate))
+        # WRatio can score unrelated short labels highly. Require at least two
+        # actual terms in common, except for a single distinctive exact term.
+        if candidate != clean and (len(shared) < min(2, len(query_terms)) or
+                                   len(shared) / len(query_terms) < .5 or
+                                   (len(query_terms) == 1 and len(clean) < 9)):
+            continue
         if candidate == clean:
             score = 100
         else:

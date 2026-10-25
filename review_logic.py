@@ -9,7 +9,7 @@ NO_CODE = "Diagnosis/Description Based – No Code Available"
 
 
 def resolve_item(row, by_code, descriptions, tier_label, accreditation, mode=AUTOMATIC,
-                 diagnosis=""):
+                 diagnosis="", treatment_type=""):
     """Resolve a billed row while retaining officer control over uncertain codes.
 
     A matched-code picker is an officer confirmation. A billed code must exist in
@@ -33,7 +33,9 @@ def resolve_item(row, by_code, descriptions, tier_label, accreditation, mode=AUT
     if not code and mode == CODE_ONLY:
         return None
     if not code and description and mode in (AUTOMATIC, NO_CODE):
-        inferred_code, inferred_score = confident_description_match(description, descriptions)
+        inferred_code, inferred_score = confident_description_match(
+            description, descriptions, context=diagnosis,
+            treatment_type=treatment_type if mode == NO_CODE else "")
         if inferred_code:
             code = inferred_code
             score = inferred_score

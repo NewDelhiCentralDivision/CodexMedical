@@ -103,6 +103,34 @@ def test_matching_mode_switch_changes_review_result():
     assert sheet.iloc[0]["CGHS code"] == "-"
 
 
+def test_no_code_indoor_invoice_is_rescrutinized_on_mode_change():
+    # Invoice-style rows from a scanned indoor-treatment claim. The bill has
+    # descriptions and amounts but no printed CGHS codes.
+    rows = [
+        {"description": "Consultant", "claimed_amount": 500},
+        {"description": "Medicine", "claimed_amount": 3000},
+        {"description": "Injection IM IV", "claimed_amount": 1280},
+        {"description": "IV Fluid", "claimed_amount": 2010},
+        {"description": "Emergency Management", "claimed_amount": 1000},
+        {"description": "B.P. Checkup", "claimed_amount": 100},
+        {"description": "Bed/3", "claimed_amount": 1310},
+    ]
+    at = _app(rows)
+    _text(at, "Treatment type").set_value("Indoor Treatment").run()
+    before = {m.label: m.value for m in at.metric}
+    assert before["Total admissible (as per CGHS rates)"] == "₹0.00"
+    [s for s in at.selectbox if s.label == "Matching mode"][0].set_value(
+        "Diagnosis/Description Based – No Code Available").run()
+    assert not at.exception
+    sheet = [d.value for d in at.dataframe if "Result" in d.value.columns][0]
+    assert sheet.iloc[0]["CGHS code"] == "CN002"
+    assert sheet.iloc[0]["Code source"] == "Description-based suggested match — review"
+    assert all(code == "-" for code in sheet.iloc[1:]["CGHS code"])
+    after = {m.label: m.value for m in at.metric}
+    assert after["Claimed bill rows"] == "₹9,200.00"
+    assert after["Total admissible (as per CGHS rates)"] == "₹350.00"
+
+
 def test_embedded_key_is_never_asked_for(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key-123")
     at = _app()

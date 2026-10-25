@@ -931,7 +931,7 @@ fetch_mode = st.selectbox(
     help="Code Based prefers a valid printed CGHS code. Manual waits for your selection. "
          "No Code suggests a rate-list entry from a billed description, with the applicant-form diagnosis as review context.",
 )
-st.caption("Every billed row stays visible. An uncertain or missing match requires officer selection; a diagnosis alone never creates a billed row.")
+st.caption("Changing this mode immediately re-scrutinizes every billed row against the selected CGHS rate sheet. An uncertain match requires officer selection; a diagnosis alone never creates a billed row.")
 
 
 def _num(x):
@@ -1054,7 +1054,8 @@ for index, review_row in enumerate(st.session_state.review_rows):
                 help="Auto applies billing rules; Count retains this row; Exclude removes it from payment.",
             )
         preview = resolve_item(review_row, BY_CODE, DESCRIPTIONS, tier_label,
-                               nabh_status, fetch_mode, diagnosis=diagnosis)
+                               nabh_status, fetch_mode, diagnosis=diagnosis,
+                               treatment_type=treatment_type)
         active_code = preview["code"] if preview else None
         rate = preview["cghs_rate"] if preview else None
         with c5:
@@ -1068,7 +1069,9 @@ for index, review_row in enumerate(st.session_state.review_rows):
             st.caption("No reliable CGHS match selected. Search the matched-code picker to choose one.")
         if fetch_mode == NO_CODE and not active_code:
             query = _txt(review_row.get("description")) or diagnosis
-            candidates = description_candidates(query, DESCRIPTIONS, context=diagnosis)
+            candidates = description_candidates(query, DESCRIPTIONS,
+                                                context=diagnosis,
+                                                treatment_type=treatment_type)
             if diagnosis:
                 st.caption(f"Applicant-form diagnosis for context: {diagnosis}")
             if query == diagnosis and diagnosis:
@@ -1102,11 +1105,19 @@ for row in st.session_state.review_rows:
     if not (desc_billed or billed_code or code or claimed):
         continue
     resolved = resolve_item(row, BY_CODE, DESCRIPTIONS, tier_label, nabh_status,
-                            fetch_mode, diagnosis=diagnosis)
+                            fetch_mode, diagnosis=diagnosis,
+                            treatment_type=treatment_type)
     if resolved is not None:
         rows_final.append(resolved)
 
 final_items = apply_billing_rules(rows_final, BY_CODE)
+if fetch_mode == NO_CODE:
+    suggested_count = sum(r.get("match_source") == "Description-based suggested match — review"
+                          for r in rows_final)
+    unmatched_count = sum(r.get("code") is None for r in rows_final)
+    st.info(f"Description-based scrutiny complete: {len(rows_final)} billed row(s) checked; "
+            f"{suggested_count} rate-list suggestion(s), {unmatched_count} without a reliable match. "
+            "Review suggested codes and choose an official rate-list entry for any remaining row before sanction.")
 def _result_note(r):
     note = r['rule_note']
     if r['cghs_rate'] is not None and r['claimed_amount'] > r['cghs_rate']:
