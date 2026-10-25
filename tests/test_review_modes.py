@@ -52,8 +52,12 @@ def test_no_code_mode_suggests_clear_description_and_manual_can_correct_it():
     suggested = resolve_item(row, RATES, DESCRIPTIONS, TIER, "NABH", NO_CODE)
     assert suggested["code"] == "LB012"
     assert suggested["match_source"] == "Description-based suggested match — review"
-    corrected = resolve_item({**row, "matched_code": "LB012"}, RATES, DESCRIPTIONS,
+    rates = {**RATES, "LB013": {**RATES["LB012"], "code": "LB013",
+                              "description": "Platelet Count"}}
+    corrected = resolve_item({**row, "matched_code": "LB013"}, rates,
+                              {**DESCRIPTIONS, "LB013": "Platelet Count"},
                               TIER, "NABH", NO_CODE)
+    assert corrected["code"] == "LB013"
     assert corrected["match_source"] == "Manually selected/modified match"
 
 
