@@ -267,16 +267,27 @@ def apply_billing_rules(items, by_code):
 
     # 2. Same code billed more than once -----------------------------------
     first_seen = {}
+    consultation_lines = set()
     for i in range(n):
         code = out[i].get("code")
         if not code:
+            continue
+        cls = (by_code.get(code, {}).get("classification") or "").lower()
+        description = (by_code.get(code, {}).get("description") or "").lower()
+        if code.startswith("CN") or "consultation" in cls or "consultation" in description:
+            identity = (code, out[i].get("invoice_number"), out[i].get("line_number"))
+            if identity[1] and identity[2]:
+                if identity in consultation_lines:
+                    out[i]["rule_status"] = REPEAT
+                    out[i]["rule_note"] = "The same consultation invoice line appears twice."
+                    out[i]["counted_amount"] = 0
+                consultation_lines.add(identity)
             continue
         if code not in first_seen:
             first_seen[code] = i
             continue
         if out[i]["rule_status"] in (INCLUDED,):
             continue  # already explained
-        cls = (by_code.get(code, {}).get("classification") or "").lower()
         if not same_bill(first_seen[code], i):
             out[i]["rule_status"] = REVIEW_REPEAT
             out[i]["rule_note"] = (f"{code} appears on a separate dated receipt/invoice; "

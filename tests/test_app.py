@@ -12,7 +12,7 @@ APP = os.path.join(os.path.dirname(__file__), "..", "app.py")
 BILL = [
     {"description": "Complete Haemogram CBC", "code": "LB012", "claimed_amount": 300},
     {"description": "Haemoglobin (Hb)", "code": "LB007", "claimed_amount": 50},
-    {"description": "Total Leucocytic Count", "code": "", "claimed_amount": 50},   # matched from the description
+    {"description": "Total Leucocytic Count", "code": "LB008", "claimed_amount": 50},
     {"description": "Platelet Count", "code": "LB013", "claimed_amount": 100},
     {"description": "Kidney Function Test", "code": "LB123", "claimed_amount": 650},  # CGHS rate is 500
     {"description": "Serum Creatinine", "code": "LB058", "claimed_amount": 100},
@@ -45,7 +45,7 @@ def test_app_runs_clean_and_does_not_pay_packaged_tests_twice():
     at = _app(BILL)
     assert not at.exception
     metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Total claimed"] == "₹1,850.00"
+    assert metrics["Claimed bill rows"] == "₹1,850.00"
     # CBC 300 + KFT 500 (capped) + HbA1c 300 (the repeat, Hb/TLC/Platelet and creatinine are not paid again)
     assert metrics["Total admissible (as per CGHS rates)"] == "₹1,100.00"
     sheet = [d.value for d in at.dataframe if "Result" in d.value.columns][0]
@@ -72,11 +72,35 @@ def test_diagnosis_is_restricted_to_the_applicant_form():
 
 def test_rate_review_has_searchable_code_pickers_and_entry_actions():
     src = open(APP).read()
-    assert 'NO_CODE = "— Search CGHS codes —"' in src
+    assert 'NO_SELECTION = "— Search CGHS codes —"' in src
     assert '"Billed code", code_options' in src
     assert '"Matched CGHS code", code_options' in src
     assert '"+ Add new entry"' in src
     assert '"Delete entry"' in src
+
+
+def test_three_matching_modes_are_available():
+    at = _app()
+    mode = [s for s in at.selectbox if s.label == "Matching mode"][0]
+    assert mode.options == ["Automatic – Code Based", "Manual",
+                            "Diagnosis/Description Based – No Code Available"]
+    assert not at.exception
+
+
+def test_matching_mode_switch_changes_review_result():
+    at = _app([{"description": "Complete Haemogram/CBC, Hb, RBC Count and Indices, TLC, DLC, Platelet, ESR, Peripheral Smear Examination)",
+                "claimed_amount": 180}])
+    mode = [s for s in at.selectbox if s.label == "Matching mode"][0]
+    assert at.session_state["review_rows"][0]["matched_code"] == ""
+    mode.set_value("Diagnosis/Description Based – No Code Available").run()
+    assert not at.exception
+    sheet = [d.value for d in at.dataframe if "Result" in d.value.columns][0]
+    assert sheet.iloc[0]["CGHS code"] == "LB012"
+    mode = [s for s in at.selectbox if s.label == "Matching mode"][0]
+    mode.set_value("Manual").run()
+    assert not at.exception
+    sheet = [d.value for d in at.dataframe if "Result" in d.value.columns][0]
+    assert sheet.iloc[0]["CGHS code"] == "-"
 
 
 def test_embedded_key_is_never_asked_for(monkeypatch):
@@ -157,7 +181,7 @@ def test_connection_check_keeps_client_alive(monkeypatch):
 def test_amounts_shown_with_exactly_two_decimals():
     at = _app(BILL)
     metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Total claimed"] == "₹1,850.00"
+    assert metrics["Claimed bill rows"] == "₹1,850.00"
     assert metrics["Total admissible (as per CGHS rates)"] == "₹1,100.00"
     assert metrics["Difference"] == "₹750.00"
     import re

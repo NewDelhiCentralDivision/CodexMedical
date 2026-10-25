@@ -116,24 +116,41 @@ def best_fuzzy_match(query, descriptions, score_cutoff=62):
 
 def confident_description_match(query, descriptions):
     """Use a unique, stable rate-master match; leave ambiguous descriptions blank."""
+    ranked = description_candidates(query, descriptions, limit=2)
+    if not ranked:
+        return None, 0
+    best, second = ranked[0], ranked[1] if len(ranked) > 1 else (None, None, 0)
+    if best[2] >= 90 and best[2] - second[2] >= 7:
+        return best[0], best[2]
+    return None, best[2]
+
+
+def description_candidates(query, descriptions, limit=3, context=""):
+    """Stable ranked suggestions; never assign a code from a generic label alone.
+
+    Each result is (code, official description, score). Callers decide whether
+    to accept a unique high-confidence match or ask the officer to choose.
+    """
     clean = normalise_description(query)
     if len(clean) < 5 or clean in {"consultation", "investigation", "medicine", "medicines", "procedure", "test"}:
-        return None, 0
+        return []
     ranked = []
+    context_terms = {word for word in normalise_description(context).split() if len(word) >= 5}
     for code, description in descriptions.items():
         candidate = normalise_description(description)
         if candidate == clean:
             score = 100
         else:
-            score = max(fuzz.WRatio(clean, candidate), fuzz.token_set_ratio(clean, candidate))
-        ranked.append((score, code))
-    ranked.sort(key=lambda pair: (-pair[0], pair[1]))
-    if not ranked:
-        return None, 0
-    best, second = ranked[0], ranked[1] if len(ranked) > 1 else (0, "")
-    if best[0] >= 90 and best[0] - second[0] >= 7:
-        return best[1], best[0]
-    return None, best[0]
+            # A shorter catalogue entry can have a token-set score of 100
+            # merely because its words occur inside a longer exact entry.
+            # Keep exact descriptions decisively ahead of such partial hits.
+            score = min(92, max(fuzz.WRatio(clean, candidate),
+                                fuzz.token_set_ratio(clean, candidate)))
+        if score >= 65 and context_terms and context_terms.intersection(candidate.split()):
+            score = min(100, score + 2)  # context only breaks close suggestions
+        ranked.append((code, description, score))
+    ranked.sort(key=lambda pair: (-pair[2], pair[0]))
+    return ranked[:limit]
 
 
 def match_line_item(item, by_code, descriptions, tier_label="Tier I (X City)", accreditation="NABH"):

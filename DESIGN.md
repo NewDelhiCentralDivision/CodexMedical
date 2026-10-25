@@ -18,6 +18,7 @@ DM Sans provides a compact, clear interface. Amounts use DM Mono so digits align
 - Primary action: muted sage (`#55766B`), with a darker sage on hover.
 - Attention states: Streamlit warning/error semantics plus a readable calculation-sheet row tint and written result.
 - Scrollbars: platform-owned Streamlit surfaces remain visible and operable.
+- Radio choices use enlarged click targets, 1rem labels, visible borders, and white text on the selected sage surface.
 
 ## Runtime mapping
 
@@ -34,3 +35,5 @@ The hero shows an abstract stack of claim papers under a loupe. It represents cl
 ## Review controls
 
 Rate review uses one compact disclosure per claim item. The first entry opens automatically; the rest show their description and claimed amount until needed. The Billed code and Matched CGHS code controls are native searchable selects backed by the same CGHS master catalogue. A selection reveals the official description and tier-specific rate; it never silently replaces the amount actually billed. The applicant-form diagnosis is shown as a separate, source-labelled review field so a diagnosis from a summary cannot masquerade as the applicant's declaration.
+
+The three matching modes share the same rate chart. Code Based displays unresolved entries for correction; Manual requires an officer selection; Diagnosis/Description Based shows a strong unique match or ranked candidates beside the bill row. Consultation entries remain distinct unless the same numbered invoice line is repeated.

@@ -87,12 +87,24 @@ def test_package_that_was_not_charged_does_not_cover_anything():
     assert out[1]["rule_status"] == b.COUNTED
 
 
-def test_repeated_test_counted_once_but_repeated_visit_only_flagged():
+def test_repeated_test_counted_once_but_repeated_consultations_retained():
     out = run(row("LB122"), row("LB122"))
     assert out[0]["rule_status"] == b.COUNTED
     assert out[1]["rule_status"] == b.REPEAT and out[1]["counted_amount"] == 0
     out = run(row("CN001"), row("CN001"))
-    assert out[1]["rule_status"] == b.REVIEW_REPEAT and out[1]["counted_amount"] == rate("CN001")
+    assert all(r["rule_status"] == b.COUNTED for r in out)
+    assert sum(r["counted_amount"] for r in out) == 2 * rate("CN001")
+
+
+def test_single_and_multiple_consultation_invoice_lines():
+    first = {**row("CN001"), "invoice_number": "B-1", "line_number": "1"}
+    second = {**row("CN001"), "invoice_number": "B-1", "line_number": "2"}
+    assert run(first)[0]["counted_amount"] == rate("CN001")
+    out = run(first, second)
+    assert [r["counted_amount"] for r in out] == [rate("CN001"), rate("CN001")]
+    duplicate = run(first, second, dict(second))
+    assert duplicate[2]["rule_status"] == b.REPEAT
+    assert duplicate[2]["counted_amount"] == 0
 
 
 def test_same_test_by_two_methods_is_flagged():

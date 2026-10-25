@@ -21,7 +21,7 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 
-from matcher import match_line_item, get_rate, extract_cghs_code, TIER_KEYS
+from matcher import get_rate, extract_cghs_code, description_candidates, TIER_KEYS
 from letter_templates import (build_sanction_memo, build_ns_checklist,
                               build_circle_sanction_order, build_unit_sanction_memo,
                               build_calculation_checklist, DEFAULT_OFFICE)
@@ -30,7 +30,7 @@ from bundles import (
     COUNTED, INCLUDED, REPEAT, FORCED_EXCLUDE, UNMATCHED,
 )
 from num2words_inr import rupees_in_words
-from review_logic import resolve_item, AUTOMATIC, CODE_ONLY
+from review_logic import resolve_item, CODE_BASED, MANUAL, NO_CODE
 from claim_audit import fingerprint, merge_extractions, reconcile
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
@@ -60,7 +60,12 @@ st.markdown("""
 [data-testid="stSidebar"] h1 { font-family:'DM Sans',sans-serif!important; color:var(--ink)!important; font-size:1.55rem!important; line-height:1.15!important; letter-spacing:-.04em!important; font-weight:700!important; }
 [data-testid="stSidebar"] [data-baseweb="select"] * { color:var(--ink); }
 [data-testid="stSidebar"] input { background:#f7faf7!important; color:var(--ink)!important; border-color:#cddad1!important; }
-[data-testid="stSidebar"] [data-testid="stRadio"] label { padding:.35rem .2rem; }
+[data-testid="stRadio"] label { min-height:3rem; padding:.65rem .8rem!important; margin:.2rem 0; border:1px solid #cbdad0; border-radius:12px; background:#f9fbf9; color:var(--ink)!important; cursor:pointer; transition:background .18s ease,border-color .18s ease,box-shadow .18s ease; }
+[data-testid="stRadio"] label:hover { background:#edf4ef; border-color:var(--sage-deep); box-shadow:0 3px 10px rgba(42,65,55,.08); }
+[data-testid="stRadio"] label:has(input:checked) { background:var(--sage-deep); border-color:var(--sage-deep); }
+[data-testid="stRadio"] label:has(input:checked) p,[data-testid="stRadio"] label:has(input:checked) span { color:#fff!important; }
+[data-testid="stRadio"] label p,[data-testid="stRadio"] label span { color:var(--ink)!important; font-size:1rem!important; font-weight:600!important; line-height:1.4!important; }
+[data-testid="stRadio"] input[type="radio"] { width:1.25rem; height:1.25rem; accent-color:var(--sage-dark); }
 .block-container { max-width:1460px; padding-top:1.2rem; padding-bottom:4rem; }
 h1 { font-family:'DM Sans',sans-serif!important; color:var(--ink)!important; font-size:clamp(2.1rem,3.2vw,3.2rem)!important; font-weight:700!important; letter-spacing:-.055em!important; margin:0!important; animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
 h2,h3 { color:var(--ink)!important; font-family:'DM Sans',sans-serif!important; letter-spacing:-.035em!important; }
@@ -922,12 +927,11 @@ diagnosis = st.text_area(
 # ---------------------------------------------------------------------------
 st.header("03 — Scrutinize CGHS rates")
 fetch_mode = st.selectbox(
-    "Calculation sheet mode", [AUTOMATIC, CODE_ONLY],
-    help="Automatic matches billed descriptions against the CGHS master when no code is printed. "
-         "Code only includes entries with a verified printed code or a code selected by the officer. "
-         "A diagnosis alone never creates a bill row.",
+    "Matching mode", [CODE_BASED, MANUAL, NO_CODE],
+    help="Code Based prefers a valid printed CGHS code. Manual waits for your selection. "
+         "No Code suggests a rate-list entry from a billed description, with the applicant-form diagnosis as review context.",
 )
-st.caption("Automatic mode marks inferred codes for review. Code only mode leaves uncoded entries out of the calculation; confirm them against the bill before sanction.")
+st.caption("Every billed row stays visible. An uncertain or missing match requires officer selection; a diagnosis alone never creates a billed row.")
 
 
 def _num(x):
@@ -958,6 +962,7 @@ if "review_rows" not in st.session_state:
          "claimed_amount": it.get("claimed_amount", 0) or 0, "override": OVERRIDE_AUTO,
          "invoice_number": it.get("invoice_number", "") or "",
          "service_date": it.get("service_date", "") or "",
+         "line_number": it.get("line_number", "") or "",
          "source_page": it.get("source_page")}
         for i, it in enumerate(items_raw)
     ] or [{"id": "new-0", "description": "", "billed_code": "", "matched_code": "",
@@ -970,13 +975,13 @@ st.write(
     "description and the rate for the chosen tier. You can add, edit or delete any review entry before preparing the draft."
 )
 
-NO_CODE = "— Search CGHS codes —"
+NO_SELECTION = "— Search CGHS codes —"
 code_labels = {code: f"{code} — {record['description']}" for code, record in BY_CODE.items()}
-code_options = [NO_CODE] + [code_labels[code] for code in sorted(code_labels)]
+code_options = [NO_SELECTION] + [code_labels[code] for code in sorted(code_labels)]
 label_to_code = {label: code for code, label in code_labels.items()}
 
 def _picker_value(code):
-    return code_labels.get(code, NO_CODE)
+    return code_labels.get(code, NO_SELECTION)
 
 def _code_from_picker(value):
     return label_to_code.get(value, "")
@@ -984,6 +989,10 @@ def _code_from_picker(value):
 def _use_selected_code(row, field, selected_code):
     """Apply a verified code without changing the description printed on the bill."""
     row[field] = selected_code
+
+def _choose_suggestion(row, code):
+    row["matched_code"] = code
+    st.session_state[f"matched_code_{row['id']}"] = _picker_value(code)
 
 for index, review_row in enumerate(st.session_state.review_rows):
     row_id = review_row["id"]
@@ -993,6 +1002,8 @@ for index, review_row in enumerate(st.session_state.review_rows):
         if review_row.get("source_page"):
             st.caption(f"Source page {review_row['source_page']} · "
                        f"Invoice {review_row.get('invoice_number') or 'not identified'}")
+        if review_row.get("billed_code") and not extract_cghs_code(review_row["billed_code"], BY_CODE):
+            st.warning(f"Printed code {review_row['billed_code']} is not in the selected CGHS rate sheet. Check the original document or select a verified match.")
         c1, c2 = st.columns(2)
         with c1:
             selected_billed = st.selectbox(
@@ -1002,12 +1013,9 @@ for index, review_row in enumerate(st.session_state.review_rows):
                 help="Search the dropdown by CGHS code or description. This is a searchable official-code catalogue.",
             )
             selected_billed_code = _code_from_picker(selected_billed)
-            if selected_billed_code != review_row.get("billed_code", ""):
+            if (selected_billed_code != review_row.get("billed_code", "") and
+                    (selected_billed_code or review_row.get("billed_code", "") in BY_CODE)):
                 _use_selected_code(review_row, "billed_code", selected_billed_code)
-                if not review_row.get("matched_code"):
-                    _use_selected_code(review_row, "matched_code", selected_billed_code)
-                    # The matched picker is created after the billed picker.
-                    st.session_state[f"matched_code_{row_id}"] = _picker_value(selected_billed_code)
         with c2:
             selected_matched = st.selectbox(
                 "Matched CGHS code", code_options,
@@ -1029,6 +1037,8 @@ for index, review_row in enumerate(st.session_state.review_rows):
         with origin_b:
             review_row["service_date"] = st.text_input(
                 "Service date", value=review_row.get("service_date", ""), key=f"service_date_{row_id}")
+        if review_row.get("line_number"):
+            st.caption(f"Invoice line {review_row['line_number']}")
         c3, c4, c5 = st.columns([1, 1, .6])
         with c3:
             review_row["claimed_amount"] = st.number_input(
@@ -1043,21 +1053,41 @@ for index, review_row in enumerate(st.session_state.review_rows):
                 key=f"treatment_{row_id}",
                 help="Auto applies billing rules; Count retains this row; Exclude removes it from payment.",
             )
-        active_code = review_row.get("matched_code") or review_row.get("billed_code")
-        rate = get_rate(BY_CODE[active_code], tier_label, nabh_status) if active_code else None
+        preview = resolve_item(review_row, BY_CODE, DESCRIPTIONS, tier_label,
+                               nabh_status, fetch_mode, diagnosis=diagnosis)
+        active_code = preview["code"] if preview else None
+        rate = preview["cghs_rate"] if preview else None
         with c5:
             st.metric("Official CGHS rate", f"₹{rate:,.2f}" if rate is not None else "—")
             if st.button("Delete entry", key=f"delete_{row_id}", help="Remove this entry from the current review."):
                 st.session_state.review_rows.pop(index)
                 st.rerun()
         if active_code:
-            st.caption(f"Official description: **{BY_CODE[active_code]['description']}**")
+            st.caption(f"{preview['match_source']}: **{active_code} — {BY_CODE[active_code]['description']}**")
+        else:
+            st.caption("No reliable CGHS match selected. Search the matched-code picker to choose one.")
+        if fetch_mode == NO_CODE and not active_code:
+            query = _txt(review_row.get("description")) or diagnosis
+            candidates = description_candidates(query, DESCRIPTIONS, context=diagnosis)
+            if diagnosis:
+                st.caption(f"Applicant-form diagnosis for context: {diagnosis}")
+            if query == diagnosis and diagnosis:
+                st.caption("Diagnosis-only candidates need explicit officer selection; they are not automatically counted.")
+            if candidates and candidates[0][2] >= 60:
+                st.warning("Several rate-list entries may fit. Compare the official descriptions with the bill before choosing.")
+                for candidate_code, candidate_description, candidate_score in candidates:
+                    if candidate_score < 60:
+                        continue
+                    st.button(f"Use {candidate_code} · {candidate_description} ({candidate_score:.0f}%)",
+                              key=f"candidate_{row_id}_{candidate_code}",
+                              on_click=_choose_suggestion, args=(review_row, candidate_code),
+                              help="This records an officer-selected match for this billed row.")
 
 if st.button("+ Add new entry", key="add_review_entry"):
     st.session_state.review_rows.append({
         "id": f"new-{len(st.session_state.review_rows)}-{datetime.datetime.now().timestamp():.0f}",
         "description": "", "billed_code": "", "matched_code": "", "claimed_amount": 0,
-        "override": OVERRIDE_AUTO, "invoice_number": "", "service_date": "", "source_page": None,
+        "override": OVERRIDE_AUTO, "invoice_number": "", "service_date": "", "line_number": "", "source_page": None,
     })
     st.rerun()
 
@@ -1071,19 +1101,12 @@ for row in st.session_state.review_rows:
     code = _txt(row.get("matched_code"))
     if not (desc_billed or billed_code or code or claimed):
         continue
-    resolved = resolve_item(row, BY_CODE, DESCRIPTIONS, tier_label, nabh_status, fetch_mode)
+    resolved = resolve_item(row, BY_CODE, DESCRIPTIONS, tier_label, nabh_status,
+                            fetch_mode, diagnosis=diagnosis)
     if resolved is not None:
         rows_final.append(resolved)
 
 final_items = apply_billing_rules(rows_final, BY_CODE)
-if fetch_mode == CODE_ONLY:
-    omitted = sum(1 for r in st.session_state.review_rows
-                  if (_txt(r.get('description')) or _txt(r.get('billed_code')) or _num(r.get('claimed_amount'))))
-    omitted -= len(rows_final)
-    if omitted:
-        st.warning(f"{omitted} uncoded billed entr{'y' if omitted == 1 else 'ies'} omitted in Code only mode. Check the bill and select a verified CGHS code before sanctioning.")
-
-
 def _result_note(r):
     note = r['rule_note']
     if r['cghs_rate'] is not None and r['claimed_amount'] > r['cghs_rate']:
@@ -1091,7 +1114,7 @@ def _result_note(r):
         note = f"{note} {capped}".strip()
     elif r['cghs_rate'] is not None and r['claimed_amount'] < r['cghs_rate']:
         note = f"{note} Claimed amount is below the CGHS cap; the claim is considered.".strip()
-    if r.get('match_source') == 'Description inferred — review':
+    if r.get('match_source') == 'Description-based suggested match — review':
         note = f"{note} Code inferred from billed description; confirm against the documents.".strip()
     return note
 
@@ -1138,7 +1161,6 @@ st.caption(
     "code or description manually."
 )
 
-calculation_claimed = sum(r['claimed_amount'] for r in final_items)
 all_reviewed_claimed = sum(_num(r.get('claimed_amount')) for r in st.session_state.review_rows)
 total_claimed = all_reviewed_claimed
 total_admissible = sum(r['counted_amount'] for r in final_items if r['counted_amount'] is not None)
@@ -1153,8 +1175,6 @@ m3.metric("Difference", f"₹{diff:,.2f}", delta=f"-₹{diff:,.2f}" if diff > 0 
 form_total = reconcile(ex)["form_total"] if ex else None
 if form_total is not None and abs(float(form_total) - all_reviewed_claimed) > 1:
     st.error(f"Applicant form claims ₹{form_total:,.2f}; reviewed bill rows total ₹{all_reviewed_claimed:,.2f}. Check for missing, duplicate or unreadable bill items.")
-if fetch_mode == CODE_ONLY and calculation_claimed < total_claimed:
-    st.warning(f"Code only mode excludes ₹{total_claimed - calculation_claimed:,.2f} in uncoded bill rows from the calculation.")
 
 if summary['excluded']:
     st.info(
@@ -1170,7 +1190,7 @@ if summary['review']:
 if unresolved:
     st.warning(f"{len(unresolved)} row(s) have no matched CGHS rate and are excluded from the admissible total above. "
                "Resolve these before sanctioning.")
-inferred = [r for r in final_items if r.get('match_source') == 'Description inferred — review']
+inferred = [r for r in final_items if r.get('match_source') == 'Description-based suggested match — review']
 if inferred:
     st.warning(f"{len(inferred)} code(s) were inferred from billed descriptions. Confirm each against the source documents and select the code explicitly before approval.")
 
@@ -1286,8 +1306,7 @@ if unresolved or summary['review']:
     st.caption("⚠️ Some rows still need a decision (REVIEW / NO MATCH). Confirm the draft review below; "
                "generate again after any amount or code change.")
 needs_review = bool(source_audit["issues"] or unresolved or summary['review'] or inferred or
-                    (form_total is not None and abs(float(form_total) - all_reviewed_claimed) > 1) or
-                    (fetch_mode == CODE_ONLY and calculation_claimed < total_claimed))
+                    (form_total is not None and abs(float(form_total) - all_reviewed_claimed) > 1))
 review_confirmed = True
 if needs_review:
     review_confirmed = st.checkbox(
@@ -1304,7 +1323,7 @@ def _remark(r):
         return "Not admitted"
     if r['cghs_rate'] is not None and r['claimed_amount'] > r['cghs_rate']:
         return f"Restricted to CGHS rate Rs {r['cghs_rate']}/-"
-    if r.get('match_source') == 'Description inferred — review':
+    if r.get('match_source') == 'Description-based suggested match — review':
         return 'Code inferred from billed description; officer review required'
     return ""
 

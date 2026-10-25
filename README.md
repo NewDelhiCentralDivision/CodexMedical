@@ -8,7 +8,7 @@ Medical Claims Studio is a refreshed Streamlit workspace for reviewing CGHS medi
 - A pastel casework interface with responsive controls, clear focus states, gentle motion and reduced-motion support.
 - Clearer visual hierarchy for decision points, while preserving editable rows, manual entry and review warnings.
 - A Three.js document-review scene with a CSS fallback, plus aligned amount metrics and improved data surfaces.
-- A calculation mode selector: Automatic fetching accepts strong description matches and marks inferred codes for officer review; Code only includes entries with verified codes.
+- Three matching modes: **Automatic – Code Based** uses verified printed CGHS codes; **Manual** waits for the officer to select a code; **Diagnosis/Description Based – No Code Available** suggests a unique strong match from billed wording and shows close alternatives for review.
 - Scanned case files are read in numbered page batches. AI extracts billed rows and their receipt numbers; a fixed audit compares invoice totals with the applicant form and marks missing or inconsistent amounts for review.
 - Five draft downloads: the existing division sanction memo and NS/Checklist, plus a standalone calculation checklist, Circle sanction order, and unit sanction memo based on the supplied examples.
 
@@ -90,7 +90,7 @@ On Streamlit Community Cloud, `packages.txt` installs poppler automatically: pus
 
 For each line item extracted from the claim:
 1. If a CGHS code was read directly off the document, it's matched exactly.
-2. In Automatic fetching mode, an uncoded billed description is matched against the CGHS master only when one candidate scores at least 90 and leads the next candidate by at least 7 points. The inferred code is labelled for officer review. Diagnosis alone does not create a bill row. In Code only mode, uncoded rows are omitted and the app warns how many were left out.
+2. **Automatic – Code Based** uses a valid printed code and leaves invalid or missing codes visible for correction. **Manual** leaves every row unmatched until an officer selects its code. **Diagnosis/Description Based – No Code Available** prefers a valid printed code, then suggests a code only when one billed-description candidate scores at least 90 and leads the next candidate by at least 7 points. Close alternatives appear beside the row for an officer to choose. The applicant-form diagnosis helps rank those suggestions but never creates a bill row or assigns a procedure by itself.
 3. Each row uses the lower of its claimed amount and CGHS rate, then the billing rules (next section) decide what actually counts. The **Calculation sheet** under the table shows the claimed amount, the CGHS cap, the amount **counted**, the code source, a result and a plain-English note:
    - **COUNTED** — payable (capped at the CGHS rate; a note says so when the bill was higher)
    - **INCLUDED IN PACKAGE** — already covered by a package that is also billed (e.g. Hb, TLC and Platelets inside a CBC); counted as ₹0
@@ -115,7 +115,7 @@ The rules come in two strengths:
 - **Listed** — the CGHS rate list itself names the component in the package's description. The component is counted as ₹0 by default (*INCLUDED IN PACKAGE*).
 - **Customary** — CGHS doesn't spell the components out (e.g. "Liver Function Test"), or it's a billing convention (a contrast scan normally covers its own plain scan). The row stays in the total and is marked *REVIEW* for you to decide.
 
-Other checks: the same *diagnostic* code billed twice is counted once (repeated consultations or procedures are only flagged, since those can genuinely repeat); and two codes for the same test by different methods (CRP / CRP quantitative, ANA / ANA-IFA, …) are flagged *REVIEW - SAME TEST BILLED TWICE*. A package only covers other rows if it is actually being paid — a package billed at ₹0, or one you set to *Exclude*, covers nothing. Nothing is final: **Treatment → Count / Exclude** overrules any row, and the NS/Checklist's calculation sheet prints the reason next to every held-back row.
+Other checks: the same *diagnostic* code billed twice on the same bill is counted once; separate dated receipts remain under review. Consultations remain separate payable entries, including repeated visits. Only a repeated scan of the same numbered consultation invoice line is held back. Two codes for the same test by different methods (CRP / CRP quantitative, ANA / ANA-IFA, …) are flagged *REVIEW - SAME TEST BILLED TWICE*. A package only covers other rows if it is actually being paid — a package billed at ₹0, or one you set to *Exclude*, covers nothing. Nothing is final: **Treatment → Count / Exclude** overrules any row, and the NS/Checklist's calculation sheet prints the reason next to every held-back row.
 
 **Limits to know about:** the rules are not date-aware (the same test done again on a different date looks like a repeat — set it to *Count*), and the lists in `bundles.py` cover the common packages, not every code in the rate list. To add one, add a line to `_PACKAGES` in `bundles.py` and run the tests; they check that every code you use exists in the rate list.
 
